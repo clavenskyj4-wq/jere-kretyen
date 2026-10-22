@@ -19,10 +19,12 @@ View your app in AI Studio: https://ai.studio/apps/17b20d5c-6e21-438d-9d04-2b35f
 3. Run the app:
    `npm run dev`
 
-Keep real credentials only in local `.env.local` files or a hosting provider's
-secret manager. Never commit them, paste them into source code, or expose them
-through browser-facing `VITE_*` variables. The committed `.env.example` contains
-placeholders only.
+Keep private credentials only in local `.env.local` files or a hosting provider's
+secret manager. Never commit private credentials, paste them into source code, or
+expose them through browser-facing `VITE_*` variables. The Supabase publishable
+(formerly `anon`) key is specifically intended for browser use and is safe only
+with the included Row Level Security policies. Never use a Supabase `service_role`
+key in the frontend. The committed `.env.example` contains placeholders only.
 
 ## Publication et installation mobile
 
@@ -41,6 +43,25 @@ Une fois publiée en HTTPS :
 - **iPhone et iPad** : ouvrez le site dans Safari, touchez « Partager », puis « Sur l’écran d’accueil ».
 
 La Bible créole est mise en cache après son premier chargement réussi afin qu’elle soit disponible hors ligne. Les fichiers `.apk` et `.exe` ne sont pas produits par ce workflow : ils nécessitent des emballages natifs séparés. Un APK est destiné à Android et un installateur `.exe` à Windows; aucun des deux ne s’installe sur iOS.
+
+### Configuration de l’administration partagée (Supabase)
+
+L’espace d’administration nécessite un projet Supabase : l’ancien code PIN local n’est pas une protection et a été retiré.
+
+1. Créez un projet Supabase et activez l’authentification par courriel et mot de passe.
+2. Dans **SQL Editor**, exécutez [`supabase/schema.sql`](./supabase/schema.sql).
+3. Créez votre compte dans **Authentication → Users**, puis ajoutez son identifiant UUID à la liste des administrateurs depuis le SQL Editor :
+
+   ```sql
+   insert into public.app_admins (user_id)
+   values ('UUID_DU_COMPTE_AUTHENTICATION_USERS');
+   ```
+
+4. Dans **Project Settings → API**, récupérez le Project URL et la clé `anon`/publishable. Ne partagez jamais la clé `service_role`.
+5. Pour le développement local, copiez `.env.example` vers `.env.local`, puis renseignez `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY`.
+6. Dans GitHub, ajoutez ces deux valeurs comme **Repository variables** (`Settings → Secrets and variables → Actions → Variables`) : `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY`. Le workflow de déploiement les injecte à la compilation.
+
+Les politiques RLS de `schema.sql` limitent les écritures aux comptes inscrits dans `app_admins`. Les rapports ne contiennent que des événements d’administration et des détails agrégés; aucune donnée personnelle d’utilisateur ni aucun enregistrement vocal n’est envoyé. Les enregistrements restent stockés sur l’appareil.
 
 ### Format JSON pour les chants
 

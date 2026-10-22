@@ -19,6 +19,8 @@ import { TRANSLATIONS } from '../../i18n/translations';
 import { storageService } from '../../services/storageService';
 import { bibleService } from '../../services/bibleService';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
+import { AboutPrivacyView } from './AboutPrivacyView';
+import { useBrandIcon } from '../../hooks/useBrandIcon';
 
 interface MoreViewProps {
   language: Language;
@@ -39,10 +41,12 @@ export const MoreView: React.FC<MoreViewProps> = ({
 }) => {
   const t = TRANSLATIONS[language];
   const { isInstallable, install } = usePWAInstall();
+  const brandIcon = useBrandIcon();
 
   const [fontSize, setFontSize] = useState<number>(() => storageService.getFontSize());
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
+  const [showAboutPrivacy, setShowAboutPrivacy] = useState(false);
 
   const handleFontSizeChange = (size: number) => {
     setFontSize(size);
@@ -67,6 +71,15 @@ export const MoreView: React.FC<MoreViewProps> = ({
     }
   };
 
+  if (showAboutPrivacy) {
+    return (
+      <AboutPrivacyView
+        language={language}
+        onBack={() => setShowAboutPrivacy(false)}
+      />
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto px-4 pb-24 pt-2 space-y-5">
       {/* Top Bar with Back Button */}
@@ -88,9 +101,13 @@ export const MoreView: React.FC<MoreViewProps> = ({
 
       {/* App Branding Card */}
       <div className="bg-gradient-to-br from-[#12263F] via-slate-900 to-[#0A1626] rounded-3xl p-6 text-white shadow-xl border border-amber-500/30 text-center space-y-2">
-        <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-amber-400 to-amber-700 p-0.5 shadow-lg flex items-center justify-center">
+        <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-amber-400 to-amber-700 p-0.5 shadow-lg flex items-center justify-center overflow-hidden">
           <div className="w-full h-full bg-[#12263F] rounded-[14px] flex items-center justify-center">
-            <span className="font-cinzel text-amber-400 font-bold text-2xl">JK</span>
+            {brandIcon ? (
+              <img src={brandIcon} alt="Logo Jere Kretyen" className="w-full h-full object-cover rounded-[14px]" />
+            ) : (
+              <span className="font-cinzel text-amber-400 font-bold text-2xl">JK</span>
+            )}
           </div>
         </div>
         <h2 className="font-cinzel font-bold text-2xl text-white">
@@ -256,15 +273,20 @@ export const MoreView: React.FC<MoreViewProps> = ({
       </div>
 
       {/* Privacy Notice Card */}
-      <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2">
+      <button
+        onClick={() => setShowAboutPrivacy(true)}
+        className="w-full p-5 rounded-3xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-left hover:border-amber-400 transition"
+      >
         <div className="flex items-center gap-2 text-slate-900 dark:text-white font-bold text-sm">
           <Shield className="w-4 h-4 text-emerald-500" />
-          <span>{t.settings.privacyTitle}</span>
+          <span>{language === 'kr' ? 'Konsènan & Konfidansyalite' : 'À propos & Confidentialité'}</span>
         </div>
-        <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-          {t.settings.privacyNotice}
+        <p className="mt-2 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+          {language === 'kr'
+            ? 'Dekouvri misyon aplikasyon an ak fason done ou yo trete.'
+            : 'Consultez la présentation de l’application et sa notice de confidentialité.'}
         </p>
-      </div>
+      </button>
 
       {/* Administration Card */}
       {onOpenAdmin && (
@@ -277,14 +299,11 @@ export const MoreView: React.FC<MoreViewProps> = ({
               <div>
                 <h4 className="font-bold text-sm text-white flex items-center gap-2">
                   <span>{language === 'kr' ? 'Espas Administrasyon' : 'Espace Administration'}</span>
-                  <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30">
-                    PIN: 1910
-                  </span>
                 </h4>
                 <p className="text-xs text-slate-300 mt-0.5">
                   {language === 'kr'
-                    ? 'Ajoute oswa modifye chant, enpòtasyon an mas (JSON/CSV), nouvèl legliz.'
-                    : 'Gestion des cantiques d\'espérance, import en masse et annonces.'}
+                    ? 'Jesyon kont, rapò, mak aplikasyon ak kantik.'
+                    : 'Gestion sécurisée, historique, rapports et identité visuelle.'}
                 </p>
               </div>
             </div>

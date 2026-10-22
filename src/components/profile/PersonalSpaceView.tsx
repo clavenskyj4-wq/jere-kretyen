@@ -223,7 +223,7 @@ export const PersonalSpaceView: React.FC<PersonalSpaceViewProps> = ({
               <button
                 onClick={onOpenAdmin}
                 className="p-2.5 rounded-2xl bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/30 transition shadow-sm"
-                title="Administration & Gestion des Chants (PIN: 1910)"
+                title="Administration"
               >
                 <ShieldAlert className="w-5 h-5" />
               </button>

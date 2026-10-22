@@ -4,6 +4,7 @@ import { Language } from '../../types';
 import { TRANSLATIONS } from '../../i18n/translations';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
+import { useBrandIcon } from '../../hooks/useBrandIcon';
 
 interface HeaderProps {
   language: Language;
@@ -23,15 +24,20 @@ export const Header: React.FC<HeaderProps> = ({
   const t = TRANSLATIONS[language];
   const isOnline = useOnlineStatus();
   const { isInstallable, install } = usePWAInstall();
+  const brandIcon = useBrandIcon();
 
   return (
     <header className="sticky top-0 z-40 bg-[#12263F] text-white shadow-md border-b border-amber-500/20">
       <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
         {/* Brand / Logo */}
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 via-[#C9A227] to-amber-700 p-0.5 shadow-sm flex items-center justify-center">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 via-[#C9A227] to-amber-700 p-0.5 shadow-sm flex items-center justify-center overflow-hidden">
             <div className="w-full h-full bg-[#12263F] rounded-[10px] flex items-center justify-center">
-              <span className="font-cinzel text-amber-400 font-bold text-lg leading-none">JK</span>
+              {brandIcon ? (
+                <img src={brandIcon} alt="Logo Jere Kretyen" className="w-full h-full object-cover rounded-[10px]" />
+              ) : (
+                <span className="font-cinzel text-amber-400 font-bold text-lg leading-none">JK</span>
+              )}
             </div>
           </div>
           <div className="flex flex-col">

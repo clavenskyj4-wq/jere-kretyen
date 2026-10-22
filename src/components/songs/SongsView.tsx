@@ -67,6 +67,7 @@ export const SongsView: React.FC<SongsViewProps> = ({
 
   // Favorites & lists
   const [favorites, setFavorites] = useState<string[]>(() => songService.getFavorites());
+  const [, setSharedSongsVersion] = useState(0);
 
   // Filter songs
   const songs = songService.searchSongs(searchQuery, selectedCategory, selectedSection);
@@ -75,6 +76,16 @@ export const SongsView: React.FC<SongsViewProps> = ({
     setToastMsg(msg);
     setTimeout(() => setToastMsg(null), 2500);
   };
+
+  useEffect(() => {
+    let active = true;
+    void songService.refreshSharedSongs().then(() => {
+      if (active) setSharedSongsVersion(version => version + 1);
+    }).catch(error => {
+      console.error('Impossible de charger les chants partagés.', error);
+    });
+    return () => { active = false; };
+  }, []);
 
   const toggleFavorite = (songId: string) => {
     const updated = songService.toggleFavorite(songId);

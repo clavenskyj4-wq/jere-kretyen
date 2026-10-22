@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Sparkles,
   BookOpen,
@@ -24,6 +24,7 @@ import { Bookmark, Language } from '../../types';
 import { TRANSLATIONS } from '../../i18n/translations';
 import { VerseCardModal } from '../bible/VerseCardModal';
 import { PWAInstallButton } from '../layout/PWAInstallButton';
+import { adminBackendService } from '../../services/adminBackendService';
 
 interface HomeViewProps {
   language: Language;
@@ -50,9 +51,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
   const [copied, setCopied] = useState(false);
   const [showCardModal, setShowCardModal] = useState(false);
+  const [sharedAnnouncements, setSharedAnnouncements] = useState<string[] | null>(null);
 
-  // Church announcements from admin
-  const announcements: string[] = (() => {
+  const localAnnouncements: string[] = (() => {
     try {
       const stored = localStorage.getItem('jere_kretyen_church_announcements');
       return stored ? JSON.parse(stored) : [
@@ -63,6 +64,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
       return [];
     }
   })();
+  const announcements = sharedAnnouncements ?? localAnnouncements;
+
+  useEffect(() => {
+    let active = true;
+    void adminBackendService.getPublicAnnouncements().then(remoteAnnouncements => {
+      if (active && remoteAnnouncements) setSharedAnnouncements(remoteAnnouncements);
+    }).catch(error => {
+      console.error('Impossible de charger les annonces partagées.', error);
+    });
+    return () => { active = false; };
+  }, []);
 
   const planProgress = storageService.getPlanProgress('year');
   const planPercent = Math.round((planProgress.length / 365) * 100);

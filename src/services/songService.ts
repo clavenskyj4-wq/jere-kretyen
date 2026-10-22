@@ -1,4 +1,5 @@
 import { SAMPLE_SONGS } from '../data/sampleSongs';
+import { adminBackendService } from './adminBackendService';
 import { HymnalSection, Song, SongCategory, SongRightsMetadata, WorshipList } from '../types';
 
 const STORAGE_KEYS = {
@@ -46,6 +47,8 @@ function normalizeSongRights(song: Song): Song {
 }
 
 class SongService {
+  private sharedSongs: Song[] = [];
+
   // Get all available songs (built-in + user added)
   getAllSongs(): Song[] {
     let customSongs: Song[] = [];
@@ -57,7 +60,16 @@ class SongService {
     } catch {
       // ignore
     }
-    return [...SAMPLE_SONGS, ...customSongs].map(normalizeSongRights);
+    const songsById = new Map<string, Song>();
+    [...SAMPLE_SONGS, ...this.sharedSongs, ...customSongs].forEach(song => {
+      songsById.set(song.id, normalizeSongRights(song));
+    });
+    return [...songsById.values()];
+  }
+
+  async refreshSharedSongs(): Promise<Song[]> {
+    this.sharedSongs = await adminBackendService.getSharedSongs();
+    return this.getAllSongs();
   }
 
   // Get single song by ID
@@ -201,10 +213,8 @@ class SongService {
   }
 
   // Add custom song (for Admin and manual contribution)
-  addCustomSong(song: Song): void {
+  async addCustomSong(song: Song): Promise<void> {
     const normalizedSong = normalizeSongRights(song);
-    const all = this.getAllSongs();
-    const existingIdx = all.findIndex((s) => s.id === normalizedSong.id);
     let customList: Song[] = [];
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.CUSTOM_SONGS);
@@ -212,15 +222,23 @@ class SongService {
     } catch {
       // ignore
     }
-    if (existingIdx >= 0) {
-      customList = customList.map((s) => (s.id === normalizedSong.id ? normalizedSong : s));
-    } else {
-      customList.push(normalizedSong);
+    const customIndex = customList.findIndex(s => s.id === normalizedSong.id);
+    if (customIndex >= 0) customList[customIndex] = normalizedSong;
+    else customList.push(normalizedSong);
+
+    if (adminBackendService.isConfigured()) {
+      await adminBackendService.saveSharedSong(normalizedSong);
+      this.sharedSongs = [
+        ...this.sharedSongs.filter(existing => existing.id !== normalizedSong.id),
+        normalizedSong,
+      ];
+      return;
     }
+
     try {
       localStorage.setItem(STORAGE_KEYS.CUSTOM_SONGS, JSON.stringify(customList));
     } catch {
-      // ignore
+      throw new Error('Le chant a été enregistré, mais sa copie locale n’a pas pu être mise à jour.');
     }
   }
 }

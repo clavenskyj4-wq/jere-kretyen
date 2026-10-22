@@ -1,45 +1,66 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  ShieldAlert,
   Lock,
   Unlock,
   Plus,
   Trash2,
   Edit2,
   Upload,
-  FileText,
   Check,
   AlertCircle,
   Megaphone,
-  BookOpen,
   Music2,
   ChevronLeft,
   Download,
   Eye,
   ShieldCheck,
+  History,
+  Image as ImageIcon,
+  KeyRound,
 } from 'lucide-react';
-import { HYMNAL_SECTIONS, SAMPLE_SONGS } from '../../data/sampleSongs';
+import { HYMNAL_SECTIONS } from '../../data/sampleSongs';
 import { songService } from '../../services/songService';
 import { HymnalSection, Language, Song, SongCategory } from '../../types';
 import { TRANSLATIONS } from '../../i18n/translations';
+import { adminBackendService, AdminActivity } from '../../services/adminBackendService';
 
 interface AdminViewProps {
   language: Language;
   onBack: () => void;
 }
 
+function isSongImport(value: unknown): value is Song {
+  if (!value || typeof value !== 'object') return false;
+  const song = value as Partial<Song>;
+  return typeof song.id === 'string'
+    && Number.isInteger(song.number)
+    && typeof song.title === 'string'
+    && typeof song.section === 'string'
+    && HYMNAL_SECTIONS.some(section => section.code === song.sectionCode)
+    && ['adoration', 'louange', 'foi', 'esperance', 'consecration', 'priere', 'combat_spirituel', 'noel', 'paques', 'enfants'].includes(String(song.category))
+    && Array.isArray(song.verses)
+    && song.verses.length > 0
+    && song.verses.every(verse => Boolean(verse && typeof verse === 'object')
+      && Number.isInteger(verse.number)
+      && Array.isArray(verse.text)
+      && verse.text.every(line => typeof line === 'string'));
+}
+
 export const AdminView: React.FC<AdminViewProps> = ({ language, onBack }) => {
   const t = TRANSLATIONS[language];
 
-  // Auth state: Default PIN is 1910 (Louis Segond 1910)
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return sessionStorage.getItem('jere_kretyen_admin_auth') === 'true';
-  });
-  const [pinCode, setPinCode] = useState('');
-  const [pinError, setPinError] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Admin tabs
-  const [activeAdminTab, setActiveAdminTab] = useState<'songs' | 'import' | 'announcements'>('songs');
+  const [activeAdminTab, setActiveAdminTab] = useState<
+    'songs' | 'import' | 'announcements' | 'branding' | 'reports' | 'account'
+  >('songs');
 
   // Song management state
   const [allSongs, setAllSongs] = useState<Song[]>(() => songService.getAllSongs());
@@ -79,30 +100,77 @@ export const AdminView: React.FC<AdminViewProps> = ({ language, onBack }) => {
   });
   const [newAnnouncement, setNewAnnouncement] = useState('');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [brandIconFile, setBrandIconFile] = useState<File | null>(null);
+  const [activity, setActivity] = useState<AdminActivity[]>([]);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(null), 2500);
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  useEffect(() => {
+    let active = true;
+    if (!adminBackendService.isConfigured()) {
+      setIsCheckingSession(false);
+      return () => { active = false; };
+    }
+    void adminBackendService.isAdminSession().then(isAdmin => {
+      if (active) setIsAuthenticated(isAdmin);
+    }).catch(error => {
+      if (active) setAuthError(error instanceof Error ? error.message : 'Vérification de session impossible.');
+    }).finally(() => {
+      if (active) setIsCheckingSession(false);
+    });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let active = true;
+    Promise.all([
+      songService.refreshSharedSongs(),
+      adminBackendService.getAdminActivity(),
+      adminBackendService.getPublicAnnouncements(),
+    ]).then(([songs, logs, sharedAnnouncements]) => {
+      if (!active) return;
+      setAllSongs(songs);
+      setActivity(logs);
+      if (sharedAnnouncements) setAnnouncements(sharedAnnouncements);
+    }).catch(error => {
+      if (active) setActionError(error instanceof Error ? error.message : 'Impossible de charger les données d’administration.');
+    });
+    return () => { active = false; };
+  }, [isAuthenticated]);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (pinCode === '1910') {
+    setAuthError(null);
+    setIsSubmitting(true);
+    try {
+      await adminBackendService.signIn(loginEmail.trim(), loginPassword);
       setIsAuthenticated(true);
-      sessionStorage.setItem('jere_kretyen_admin_auth', 'true');
-      setPinError(false);
-    } else {
-      setPinError(true);
+      setLoginPassword('');
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'Connexion impossible. Vérifiez les identifiants.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    sessionStorage.removeItem('jere_kretyen_admin_auth');
+  const handleLogout = async () => {
+    setActionError(null);
+    try {
+      await adminBackendService.signOut();
+      setIsAuthenticated(false);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'La déconnexion a échoué.');
+    }
   };
 
   // Save / Update Song
-  const handleSaveSong = () => {
+  const handleSaveSong = async () => {
     if (!songForm.title || !songForm.number) {
       alert(language === 'kr' ? 'Tanpri mete yon tit ak yon nimewo.' : 'Veuillez saisir un titre et un numéro.');
       return;
@@ -126,10 +194,15 @@ export const AdminView: React.FC<AdminViewProps> = ({ language, onBack }) => {
       chorus: songForm.chorus && songForm.chorus.length > 0 && songForm.chorus[0].trim() ? songForm.chorus : undefined,
     };
 
-    songService.addCustomSong(newSong);
-    setAllSongs(songService.getAllSongs());
-    setIsEditingSong(false);
-    showToast(language === 'kr' ? 'Chant anrejistre avèk siksè !' : 'Chant enregistré avec succès !');
+    setActionError(null);
+    try {
+      await songService.addCustomSong(newSong);
+      setAllSongs(songService.getAllSongs());
+      setIsEditingSong(false);
+      showToast(language === 'kr' ? 'Chant anrejistre avèk siksè !' : 'Chant enregistré avec succès !');
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Impossible d’enregistrer ce chant.');
+    }
   };
 
   // Mass Import validation
@@ -145,22 +218,29 @@ export const AdminView: React.FC<AdminViewProps> = ({ language, onBack }) => {
         setImportError('Le tableau JSON est vide.');
         return;
       }
+      if (!parsed.every(isSongImport)) {
+        setImportError('Au moins un chant est incomplet ou invalide. Vérifiez les champs id, numéro, titres, section, catégorie et couplets.');
+        return;
+      }
       setImportPreview(parsed);
       showToast(`${parsed.length} chants validés dans l'aperçu.`);
-    } catch (err: any) {
-      setImportError(`Erreur de format JSON: ${err.message}`);
+    } catch (error) {
+      setImportError(`Erreur de format JSON: ${error instanceof Error ? error.message : 'contenu invalide'}`);
     }
   };
 
-  const handleConfirmImport = () => {
+  const handleConfirmImport = async () => {
     if (!importPreview || importPreview.length === 0) return;
-    importPreview.forEach((song) => {
-      songService.addCustomSong(song);
-    });
-    setAllSongs(songService.getAllSongs());
-    setImportPreview(null);
-    setImportJsonText('');
-    showToast(language === 'kr' ? 'Tout chant yo enpòte avèk siksè !' : 'Importation en masse réussie !');
+    setActionError(null);
+    try {
+      for (const song of importPreview) await songService.addCustomSong(song);
+      setAllSongs(songService.getAllSongs());
+      setImportPreview(null);
+      setImportJsonText('');
+      showToast(language === 'kr' ? 'Tout chant yo enpòte avèk siksè !' : 'Importation en masse réussie !');
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'L’importation a échoué; certains chants peuvent déjà être enregistrés.');
+    }
   };
 
   // Download template JSON
@@ -208,20 +288,75 @@ export const AdminView: React.FC<AdminViewProps> = ({ language, onBack }) => {
   };
 
   // Add announcement
-  const handleAddAnnouncement = () => {
+  const handleAddAnnouncement = async () => {
     if (!newAnnouncement.trim()) return;
     const updated = [newAnnouncement.trim(), ...announcements];
-    setAnnouncements(updated);
-    localStorage.setItem('jere_kretyen_church_announcements', JSON.stringify(updated));
-    setNewAnnouncement('');
-    showToast(language === 'kr' ? 'Anons ajoute !' : 'Annonce publiée !');
+    setActionError(null);
+    try {
+      await adminBackendService.saveAnnouncements(updated);
+      setAnnouncements(updated);
+      setNewAnnouncement('');
+      showToast(language === 'kr' ? 'Anons ajoute !' : 'Annonce publiée !');
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Impossible de publier cette annonce.');
+    }
   };
 
-  const handleDeleteAnnouncement = (index: number) => {
+  const handleDeleteAnnouncement = async (index: number) => {
     const updated = announcements.filter((_, i) => i !== index);
-    setAnnouncements(updated);
-    localStorage.setItem('jere_kretyen_church_announcements', JSON.stringify(updated));
+    setActionError(null);
+    try {
+      await adminBackendService.saveAnnouncements(updated);
+      setAnnouncements(updated);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Impossible de supprimer cette annonce.');
+    }
   };
+
+  const handleBrandIconUpload = async () => {
+    if (!brandIconFile) return;
+    setActionError(null);
+    setIsSubmitting(true);
+    try {
+      await adminBackendService.uploadBrandIcon(brandIconFile);
+      window.dispatchEvent(new Event('brand-icon-updated'));
+      setBrandIconFile(null);
+      showToast('Logo de l’application mis à jour.');
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Impossible de téléverser le logo.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleChangePassword = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setActionError(null);
+    if (newPassword.length < 10) {
+      setActionError('Choisissez un mot de passe d’au moins 10 caractères.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setActionError('Les deux mots de passe ne correspondent pas.');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await adminBackendService.changePassword(newPassword);
+      setNewPassword('');
+      setConfirmPassword('');
+      showToast('Mot de passe modifié avec succès.');
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Impossible de modifier le mot de passe.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const activityByAction = activity.reduce<Record<string, number>>((counts, item) => {
+    counts[item.action] = (counts[item.action] ?? 0) + 1;
+    return counts;
+  }, {});
 
   return (
     <div className="max-w-3xl mx-auto px-4 pb-24 pt-2 space-y-5">
@@ -230,6 +365,11 @@ export const AdminView: React.FC<AdminViewProps> = ({ language, onBack }) => {
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-[#12263F] text-amber-300 px-4 py-2 rounded-xl shadow-xl border border-amber-500/40 text-xs font-semibold animate-in fade-in flex items-center gap-2">
           <Check className="w-4 h-4 text-emerald-400" />
           <span>{toastMsg}</span>
+        </div>
+      )}
+      {actionError && (
+        <div role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-500">
+          {actionError}
         </div>
       )}
 
@@ -253,8 +393,9 @@ export const AdminView: React.FC<AdminViewProps> = ({ language, onBack }) => {
         )}
       </div>
 
-      {/* If Not Authenticated, show Pin Code Screen */}
-      {!isAuthenticated ? (
+      {isCheckingSession ? (
+        <div className="py-16 text-center text-sm text-slate-500">Vérification de la session…</div>
+      ) : !isAuthenticated ? (
         <div className="bg-white dark:bg-[#0D1C30] rounded-3xl p-8 border border-amber-500/30 text-center shadow-xl max-w-sm mx-auto space-y-5 animate-in fade-in">
           <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
             <Lock className="w-7 h-7" />
@@ -271,29 +412,42 @@ export const AdminView: React.FC<AdminViewProps> = ({ language, onBack }) => {
             </p>
           </div>
 
+          {!adminBackendService.isConfigured() && (
+            <div role="alert" className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-left text-xs text-amber-700 dark:text-amber-300">
+              L’administration sécurisée n’est pas configurée. Suivez la section Supabase du README et configurez les variables du projet.
+            </div>
+          )}
+
           <form onSubmit={handleLogin} className="space-y-3">
             <div>
               <input
-                type="password"
-                maxLength={6}
+                type="email"
+                autoComplete="username"
                 autoFocus
-                value={pinCode}
-                onChange={(e) => setPinCode(e.target.value)}
-                placeholder="Code PIN (par défaut : 1910)"
-                className="w-full text-center tracking-widest font-mono text-lg py-3 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500"
+                required
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                placeholder="Adresse courriel"
+                className="w-full p-3 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
-              {pinError && (
-                <span className="text-xs text-rose-500 mt-1 block">
-                  Code incorrect. Utilisez « 1910 » (Louis Segond).
-                </span>
-              )}
+              <input
+                type="password"
+                autoComplete="current-password"
+                required
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                placeholder="Mot de passe"
+                className="mt-3 w-full p-3 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+              {authError && <span role="alert" className="text-xs text-rose-500 mt-2 block">{authError}</span>}
             </div>
 
             <button
               type="submit"
-              className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold text-sm shadow hover:brightness-110 transition active:scale-95"
+              disabled={isSubmitting || !adminBackendService.isConfigured()}
+              className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold text-sm shadow hover:brightness-110 transition active:scale-95 disabled:opacity-50"
             >
-              {language === 'kr' ? 'Antre nan Administrasyon' : 'Déverrouiller l\'Administration'}
+              {isSubmitting ? 'Connexion…' : language === 'kr' ? 'Antre nan Administrasyon' : 'Se connecter'}
             </button>
           </form>
 
@@ -361,6 +515,39 @@ export const AdminView: React.FC<AdminViewProps> = ({ language, onBack }) => {
             >
               <Megaphone className="w-3.5 h-3.5" />
               <span>{language === 'kr' ? 'Anons' : 'Annonces'}</span>
+            </button>
+            <button
+              onClick={() => setActiveAdminTab('branding')}
+              className={`py-2 rounded-xl transition flex items-center justify-center gap-1.5 ${
+                activeAdminTab === 'branding'
+                  ? 'bg-[#12263F] text-amber-300 font-bold shadow'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-white'
+              }`}
+            >
+              <ImageIcon className="w-3.5 h-3.5" />
+              <span>Identité</span>
+            </button>
+            <button
+              onClick={() => setActiveAdminTab('reports')}
+              className={`py-2 rounded-xl transition flex items-center justify-center gap-1.5 ${
+                activeAdminTab === 'reports'
+                  ? 'bg-[#12263F] text-amber-300 font-bold shadow'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-white'
+              }`}
+            >
+              <History className="w-3.5 h-3.5" />
+              <span>Rapports</span>
+            </button>
+            <button
+              onClick={() => setActiveAdminTab('account')}
+              className={`py-2 rounded-xl transition flex items-center justify-center gap-1.5 ${
+                activeAdminTab === 'account'
+                  ? 'bg-[#12263F] text-amber-300 font-bold shadow'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-white'
+              }`}
+            >
+              <KeyRound className="w-3.5 h-3.5" />
+              <span>Sécurité</span>
             </button>
           </div>
 
@@ -680,6 +867,109 @@ export const AdminView: React.FC<AdminViewProps> = ({ language, onBack }) => {
                 ))}
               </div>
             </div>
+          )}
+
+          {activeAdminTab === 'branding' && (
+            <section className="p-5 bg-white dark:bg-[#0D1C30] rounded-3xl border border-slate-200 dark:border-slate-800 space-y-4">
+              <div>
+                <h4 className="font-cinzel font-bold text-base text-slate-900 dark:text-white">Logo de l’application</h4>
+                <p className="text-xs text-slate-400">
+                  Importez une image carrée PNG, JPEG ou WebP (3 Mo maximum). Elle sera partagée dans l’en-tête, les réglages, le favicon et les métadonnées de partage. L’icône déjà installée sur l’écran d’accueil reste définie par le manifeste statique.
+                </p>
+              </div>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={event => setBrandIconFile(event.target.files?.[0] ?? null)}
+                className="block w-full text-xs text-slate-600 dark:text-slate-300 file:mr-3 file:rounded-xl file:border-0 file:bg-amber-500 file:px-4 file:py-2 file:font-bold file:text-slate-950"
+              />
+              {brandIconFile && (
+                <p className="text-xs text-slate-500">Fichier sélectionné : {brandIconFile.name}</p>
+              )}
+              <button
+                type="button"
+                disabled={!brandIconFile || isSubmitting}
+                onClick={handleBrandIconUpload}
+                className="rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950 disabled:opacity-50"
+              >
+                {isSubmitting ? 'Téléversement…' : 'Publier le logo'}
+              </button>
+              <p className="text-[11px] text-slate-400">
+                La mise à jour de l’aperçu des réseaux sociaux peut dépendre de leur cache et de leur prise en charge des métadonnées dynamiques.
+              </p>
+            </section>
+          )}
+
+          {activeAdminTab === 'reports' && (
+            <section className="p-5 bg-white dark:bg-[#0D1C30] rounded-3xl border border-slate-200 dark:border-slate-800 space-y-4">
+              <div>
+                <h4 className="font-cinzel font-bold text-base text-slate-900 dark:text-white">Rapports et historique</h4>
+                <p className="text-xs text-slate-400">Activité administrative récente, limitée aux 200 dernières opérations. Aucun profil utilisateur ni audio n’est inclus.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-2xl bg-slate-50 dark:bg-slate-900 p-4">
+                  <p className="text-xs text-slate-400">Opérations enregistrées</p>
+                  <p className="mt-1 text-2xl font-bold text-amber-500">{activity.length}</p>
+                </div>
+                <div className="rounded-2xl bg-slate-50 dark:bg-slate-900 p-4">
+                  <p className="text-xs text-slate-400">Types d’action</p>
+                  <p className="mt-1 text-2xl font-bold text-amber-500">{Object.keys(activityByAction).length}</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {Object.entries(activityByAction).map(([action, count]) => (
+                  <div key={action} className="flex justify-between rounded-xl bg-slate-50 dark:bg-slate-900 px-3 py-2 text-xs">
+                    <span>{action.replaceAll('_', ' ')}</span><strong>{count}</strong>
+                  </div>
+                ))}
+              </div>
+              {activity.length === 0 ? (
+                <p className="text-xs text-slate-500">Aucune activité enregistrée pour le moment.</p>
+              ) : (
+                <div className="max-h-72 space-y-2 overflow-y-auto">
+                  {activity.map(item => (
+                    <div key={item.id} className="flex items-start justify-between gap-3 rounded-xl border border-slate-100 dark:border-slate-800 p-3 text-xs">
+                      <div><p className="font-semibold">{item.action.replaceAll('_', ' ')}</p><p className="mt-1 text-slate-400">{new Date(item.created_at).toLocaleString(language === 'kr' ? 'ht-HT' : 'fr-FR')}</p></div>
+                      <span className="text-right text-slate-400">{Object.entries(item.details).map(([key, value]) => `${key}: ${value}`).join(' · ')}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {activeAdminTab === 'account' && (
+            <section className="p-5 bg-white dark:bg-[#0D1C30] rounded-3xl border border-slate-200 dark:border-slate-800 space-y-4">
+              <div>
+                <h4 className="font-cinzel font-bold text-base text-slate-900 dark:text-white">Sécurité du compte</h4>
+                <p className="text-xs text-slate-400">Choisissez un nouveau mot de passe d’au moins 10 caractères.</p>
+              </div>
+              <form onSubmit={handleChangePassword} className="space-y-3">
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  minLength={10}
+                  required
+                  value={newPassword}
+                  onChange={event => setNewPassword(event.target.value)}
+                  placeholder="Nouveau mot de passe"
+                  className="w-full rounded-xl border border-slate-300 bg-slate-50 p-3 text-sm dark:border-slate-700 dark:bg-slate-900"
+                />
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  minLength={10}
+                  required
+                  value={confirmPassword}
+                  onChange={event => setConfirmPassword(event.target.value)}
+                  placeholder="Confirmer le nouveau mot de passe"
+                  className="w-full rounded-xl border border-slate-300 bg-slate-50 p-3 text-sm dark:border-slate-700 dark:bg-slate-900"
+                />
+                <button type="submit" disabled={isSubmitting} className="rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950 disabled:opacity-50">
+                  Modifier le mot de passe
+                </button>
+              </form>
+            </section>
           )}
         </div>
       )}
