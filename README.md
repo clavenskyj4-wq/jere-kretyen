@@ -41,3 +41,42 @@ Une fois publiée en HTTPS :
 - **iPhone et iPad** : ouvrez le site dans Safari, touchez « Partager », puis « Sur l’écran d’accueil ».
 
 La Bible créole est mise en cache après son premier chargement réussi afin qu’elle soit disponible hors ligne. Les fichiers `.apk` et `.exe` ne sont pas produits par ce workflow : ils nécessitent des emballages natifs séparés. Un APK est destiné à Android et un installateur `.exe` à Windows; aucun des deux ne s’installe sur iOS.
+
+### Format JSON pour les chants
+
+Les imports JSON acceptent des champs de droits distincts pour les paroles, la musique, la traduction, la source et la preuve de licence. Les anciennes entrées sans ces éléments sont affichées « À vérifier » : leur statut ne peut pas être confirmé à partir du seul nom de l’auteur ou de l’ancien statut.
+
+```json
+[
+  {
+    "id": "hymn-001",
+    "number": 1,
+    "title": "Titre français",
+    "titleKr": "Tit kreyòl",
+    "section": "Hymnes du domaine public",
+    "sectionCode": "CE_FR",
+    "author": "Auteur des paroles",
+    "category": "adoration",
+    "copyrightStatus": "À vérifier",
+    "rights": {
+      "status": "unverified",
+      "lyricsAuthor": "Auteur des paroles",
+      "composer": "Compositeur",
+      "translator": "Traducteur",
+      "arranger": "Arrangeur",
+      "sourceTitle": "Titre du recueil ou de l’archive consultée",
+      "sourceUrl": "https://example.org/source",
+      "evidence": "Référence vérifiable : édition, année et page."
+    },
+    "verses": [
+      {
+        "number": 1,
+        "text": ["Première ligne", "Deuxième ligne"]
+      }
+    ],
+    "chorus": ["Ligne du refrain"]
+  }
+]
+```
+
+Ne choisissez `public_domain` ou `licensed` que si `sourceTitle` ou `sourceUrl` et `evidence` documentent le statut. Sinon, gardez `unverified`. Le statut de droits des traductions et arrangements doit être vérifié séparément de celui du texte original.

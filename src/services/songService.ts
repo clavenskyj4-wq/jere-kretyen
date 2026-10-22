@@ -1,5 +1,5 @@
 import { SAMPLE_SONGS } from '../data/sampleSongs';
-import { HymnalSection, Song, SongCategory, WorshipList } from '../types';
+import { HymnalSection, Song, SongCategory, SongRightsMetadata, WorshipList } from '../types';
 
 const STORAGE_KEYS = {
   FAVORITES: 'jere_kretyen_song_favorites',
@@ -16,6 +16,35 @@ function normalize(str: string): string {
     .trim();
 }
 
+function normalizeSongRights(song: Song): Song {
+  const rights = song.rights;
+  const hasSource = Boolean(
+    rights &&
+    ((typeof rights.sourceUrl === 'string' && /^https?:\/\//i.test(rights.sourceUrl.trim())) ||
+      (typeof rights.sourceTitle === 'string' && rights.sourceTitle.trim()))
+  );
+  const hasEvidence = typeof rights?.evidence === 'string' && rights.evidence.trim().length > 0;
+  let status: SongRightsMetadata['status'] = 'unverified';
+  if (
+    rights &&
+    (rights.status === 'public_domain' || rights.status === 'licensed') &&
+    hasSource &&
+    hasEvidence
+  ) {
+    status = rights.status;
+  }
+
+  return {
+    ...song,
+    rights: rights ? { ...rights, status } : { status },
+    copyrightStatus: status === 'public_domain'
+      ? 'Domaine public'
+      : status === 'licensed'
+        ? 'Autorisé'
+        : 'À vérifier',
+  };
+}
+
 class SongService {
   // Get all available songs (built-in + user added)
   getAllSongs(): Song[] {
@@ -28,7 +57,7 @@ class SongService {
     } catch {
       // ignore
     }
-    return [...SAMPLE_SONGS, ...customSongs];
+    return [...SAMPLE_SONGS, ...customSongs].map(normalizeSongRights);
   }
 
   // Get single song by ID
@@ -173,8 +202,9 @@ class SongService {
 
   // Add custom song (for Admin and manual contribution)
   addCustomSong(song: Song): void {
+    const normalizedSong = normalizeSongRights(song);
     const all = this.getAllSongs();
-    const existingIdx = all.findIndex((s) => s.id === song.id);
+    const existingIdx = all.findIndex((s) => s.id === normalizedSong.id);
     let customList: Song[] = [];
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.CUSTOM_SONGS);
@@ -183,9 +213,9 @@ class SongService {
       // ignore
     }
     if (existingIdx >= 0) {
-      customList = customList.map((s) => (s.id === song.id ? song : s));
+      customList = customList.map((s) => (s.id === normalizedSong.id ? normalizedSong : s));
     } else {
-      customList.push(song);
+      customList.push(normalizedSong);
     }
     try {
       localStorage.setItem(STORAGE_KEYS.CUSTOM_SONGS, JSON.stringify(customList));

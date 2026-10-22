@@ -124,6 +124,19 @@ export interface SongVerseItem {
   text: string[];
 }
 
+export type SongRightsStatus = 'unverified' | 'public_domain' | 'licensed';
+
+export interface SongRightsMetadata {
+  status: SongRightsStatus;
+  lyricsAuthor?: string;
+  composer?: string;
+  translator?: string;
+  arranger?: string;
+  sourceTitle?: string;
+  sourceUrl?: string;
+  evidence?: string;
+}
+
 export interface Song {
   id: string;
   number: number;
@@ -133,7 +146,8 @@ export interface Song {
   sectionCode: HymnalSection;
   author?: string;
   category: SongCategory;
-  copyrightStatus: 'Domaine public' | 'Autorisé';
+  copyrightStatus: 'Domaine public' | 'Autorisé' | 'À vérifier';
+  rights?: SongRightsMetadata;
   verses: SongVerseItem[];
   chorus?: string[];
   keySignature?: string;
@@ -263,4 +277,3 @@ export interface SermonDraft {
   createdAt: number;
   updatedAt: number;
 }
-

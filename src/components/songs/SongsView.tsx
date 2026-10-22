@@ -378,9 +378,23 @@ export const SongsView: React.FC<SongsViewProps> = ({
                 </p>
               )}
               <div className="flex flex-wrap items-center justify-center gap-3 mt-2 text-[11px] text-slate-500 dark:text-slate-400">
-                <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                  ✓ {selectedSong.copyrightStatus}
+                <span className={`font-medium ${
+                  selectedSong.copyrightStatus === 'À vérifier'
+                    ? 'text-amber-600 dark:text-amber-400'
+                    : 'text-emerald-600 dark:text-emerald-400'
+                }`}>
+                  {selectedSong.copyrightStatus === 'À vérifier' ? '⚠' : '✓'} {selectedSong.copyrightStatus}
                 </span>
+                {selectedSong.rights?.sourceUrl && /^https?:\/\//i.test(selectedSong.rights.sourceUrl.trim()) && (
+                  <a
+                    href={selectedSong.rights.sourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-amber-600 dark:text-amber-400 underline underline-offset-2"
+                  >
+                    Source des droits
+                  </a>
+                )}
                 {selectedSong.keySignature && (
                   <span>Tonalité : {selectedSong.keySignature}</span>
                 )}
@@ -401,8 +415,23 @@ export const SongsView: React.FC<SongsViewProps> = ({
                   >
                     {v.text.map((line, i) => (
                       <p key={i}>{line}</p>
-                    ))}
+                    )                    )}
                   </div>
+                  {(selectedSong.rights?.lyricsAuthor ||
+                    selectedSong.rights?.composer ||
+                    selectedSong.rights?.translator ||
+                    selectedSong.rights?.arranger ||
+                    selectedSong.rights?.sourceTitle) && (
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      {[
+                        selectedSong.rights.lyricsAuthor && `Paroles : ${selectedSong.rights.lyricsAuthor}`,
+                        selectedSong.rights.composer && `Musique : ${selectedSong.rights.composer}`,
+                        selectedSong.rights.translator && `Traduction : ${selectedSong.rights.translator}`,
+                        selectedSong.rights.arranger && `Arrangement : ${selectedSong.rights.arranger}`,
+                        selectedSong.rights.sourceTitle && `Source : ${selectedSong.rights.sourceTitle}`,
+                      ].filter(Boolean).join(' · ')}
+                    </p>
+                  )}
 
                   {/* Refrain after couplet 1 */}
                   {v.number === 1 && selectedSong.chorus && (
