@@ -1,0 +1,6 @@
+{
+  "name": "Jere Kretyen",
+  "description": "Application chrétienne pour chanter les Chants d'Espérance, s'enregistrer et méditer la Bible Louis Segond en français et créole haïtien.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

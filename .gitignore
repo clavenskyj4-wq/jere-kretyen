@@ -1,0 +1,23 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Local credentials and signing keys
+.npmrc
+credentials.json
+secrets.json
+*-service-account*.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+!.env.example
