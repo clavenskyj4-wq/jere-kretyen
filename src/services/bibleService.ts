@@ -36,7 +36,7 @@ class BibleService {
 
     this.loadingHaitianPromise = (async () => {
       try {
-        const res = await fetch('/data/bible_ht.json');
+        const res = await fetch(`${import.meta.env.BASE_URL}data/bible_ht.json`);
         if (res.ok) {
           const json = await res.json();
           this.haitianBibleData = json;

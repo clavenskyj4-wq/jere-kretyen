@@ -4,8 +4,11 @@ import path from 'path';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+const base = process.env.GITHUB_PAGES === 'true' ? '/jere-kretyen/' : '/';
+
 export default defineConfig(() => {
   return {
+    base,
     plugins: [
       react(),
       tailwindcss(),
@@ -13,24 +16,24 @@ export default defineConfig(() => {
         registerType: 'autoUpdate',
         includeAssets: ['icon.svg'],
         manifest: {
-          id: '/',
+          id: base,
           name: 'Jere Kretyen — Chante et vis la Parole',
           short_name: 'JereKretyen',
           description: 'Application chrétienne pour chanter les Chants d\'Espérance, s\'enregistrer et méditer la Bible Louis Segond en français et créole haïtien.',
           theme_color: '#12263F',
           background_color: '#12263F',
           display: 'standalone',
-          start_url: '/',
-          scope: '/',
+          start_url: base,
+          scope: base,
           icons: [
             {
-              src: '/icon.svg',
+              src: `${base}icon.svg`,
               sizes: '192x192 512x512',
               type: 'image/svg+xml',
               purpose: 'any',
             },
             {
-              src: '/icon.svg',
+              src: `${base}icon.svg`,
               sizes: '512x512',
               type: 'image/svg+xml',
               purpose: 'maskable',
@@ -62,6 +65,20 @@ export default defineConfig(() => {
                 expiration: {
                   maxEntries: 10,
                   maxAgeSeconds: 60 * 60 * 24 * 365,
+                },
+                cacheableResponse: {
+                  statuses: [0, 200],
+                },
+              },
+            },
+            {
+              urlPattern: /\/data\/bible_ht\.json$/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'haitian-bible-data',
+                expiration: {
+                  maxEntries: 1,
+                  maxAgeSeconds: 60 * 60 * 24 * 30,
                 },
                 cacheableResponse: {
                   statuses: [0, 200],
