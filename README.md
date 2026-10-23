@@ -49,7 +49,9 @@ La Bible créole est mise en cache après son premier chargement réussi afin qu
 - Le lecteur biblique s’ouvre sur Matthieu 1. La recherche depuis l’écran Bible porte sur l’ensemble des livres; les résultats créoles couvrent les textes créoles chargés dans l’application et la recherche française utilise le service de Bible en ligne.
 - Dans le sélecteur de livre, ouvrez **Auteur et contexte historique** pour consulter les attributions, périodes, lieux et circonstances. Les dates sont indicatives et les attributions anciennes sont parfois discutées.
 - Dans **Mon Espace → Paramètres**, choisissez une palette prédéfinie ou ajustez vous-même la couleur principale et la couleur d’accent. Ces préférences sont enregistrées sur cet appareil.
+- Choisissez aussi **Lato** ou **Poppins** dans les paramètres; les grands titres sont affichés en gras et en majuscules. Les annonces de l’accueil défilent et l’animation est désactivée si l’appareil demande une réduction des mouvements.
 - Dans **Enregistrements**, le bouton Studio crée une copie avec compression/réverbération vocale et un accompagnement synthétisé facultatif (batterie, guitare, clavier). Le mixage se fait sur le téléphone et n’envoie pas la voix sur Internet; pour fonctionner localement, il ne nécessite pas de connexion. Le traitement est limité aux enregistrements de cinq minutes ou moins.
+- L’écran **Enregistrements** propose également une recherche d’instrumentales en ligne (Gospel, louange, piano, guitare) depuis Wikimedia Commons. La lecture nécessite Internet. L’application ne conserve pas et ne redistribue pas les fichiers : chaque résultat affiche sa source, sa licence et ses crédits, à consulter avant toute réutilisation.
 
 ### Générer et télécharger l’APK Android
 

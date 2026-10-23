@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { Language } from '../../types';
 import { TRANSLATIONS } from '../../i18n/translations';
-import { APP_PALETTES, AppPalette, storageService } from '../../services/storageService';
+import { APP_PALETTES, AppFont, AppPalette, storageService } from '../../services/storageService';
 import { bibleService } from '../../services/bibleService';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 import { AboutPrivacyView } from './AboutPrivacyView';
@@ -29,6 +29,8 @@ interface MoreViewProps {
   onThemeToggle: () => void;
   palette: AppPalette;
   onPaletteChange: (palette: AppPalette) => void;
+  appFont: AppFont;
+  onFontChange: (font: AppFont) => void;
   onBack?: () => void;
   onOpenAdmin?: () => void;
 }
@@ -40,6 +42,8 @@ export const MoreView: React.FC<MoreViewProps> = ({
   onThemeToggle,
   palette,
   onPaletteChange,
+  appFont,
+  onFontChange,
   onBack,
   onOpenAdmin,
 }) => {
@@ -123,6 +127,42 @@ export const MoreView: React.FC<MoreViewProps> = ({
         <p className="text-xs text-slate-300 max-w-sm mx-auto pt-1">
           {t.tagline}
         </p>
+      </div>
+
+      {/* App font family */}
+      <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+        <div>
+          <h4 className="font-semibold text-sm text-slate-900 dark:text-white">
+            {language === 'kr' ? 'Polis ekriti' : 'Police d’écriture'}
+          </h4>
+          <p className="text-xs text-slate-400 mt-1">
+            {language === 'kr'
+              ? 'Chwazi Lato oswa Poppins. Gwo tit yo rete an karaktè gra ak majiskil.'
+              : 'Choisissez Lato ou Poppins. Les grands titres restent en gras et en majuscules.'}
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {(['lato', 'poppins'] as const).map((font) => (
+            <button
+              key={font}
+              type="button"
+              onClick={() => onFontChange(font)}
+              aria-pressed={appFont === font}
+              className={`rounded-xl border p-3 text-left transition ${
+                appFont === font
+                  ? 'border-amber-500 bg-amber-50 dark:bg-slate-800'
+                  : 'border-slate-200 dark:border-slate-700'
+              }`}
+            >
+              <span className="block text-sm font-bold text-slate-900 dark:text-white" style={{ fontFamily: font === 'lato' ? 'Lato, sans-serif' : 'Poppins, sans-serif' }}>
+                {font === 'lato' ? 'Lato' : 'Poppins'}
+              </span>
+              <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400" style={{ fontFamily: font === 'lato' ? 'Lato, sans-serif' : 'Poppins, sans-serif' }}>
+                {language === 'kr' ? 'Tèks ak tit yo' : 'Texte et titres'}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* About and privacy information */}

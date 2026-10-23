@@ -29,6 +29,7 @@ import { Language, Song } from '../../types';
 import { TRANSLATIONS } from '../../i18n/translations';
 import { recordingStorageService, StoredAudioRecording } from '../../services/recordingStorageService';
 import { createStudioMix, StudioMixOptions } from '../../services/audioProductionService';
+import { InstrumentalLibrary } from './InstrumentalLibrary';
 
 interface RecordingsViewProps {
   language: Language;
@@ -518,6 +519,8 @@ export const RecordingsView: React.FC<RecordingsViewProps> = ({
           <span>{formatBytes(storageUsage.usedBytes)}</span>
         </div>
       </div>
+
+      <InstrumentalLibrary language={language} />
 
       {/* Permission Error Banner */}
       {permissionError && (

@@ -40,6 +40,23 @@
   border-color: var(--app-accent, #c9a227);
 }
 
+.app-shell {
+  font-family: var(--app-font-family, "Lato", sans-serif);
+}
+
+.app-shell .font-cinzel,
+.app-shell .font-scripture {
+  font-family: var(--app-font-family, "Lato", sans-serif);
+}
+
+.app-shell h1,
+.app-shell h2,
+.app-shell h3 {
+  font-weight: 800;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+
 .font-cinzel {
   font-family: 'Cinzel', serif;
 }
@@ -70,4 +87,28 @@
 /* Safe area insets */
 .safe-pb {
   padding-bottom: max(1rem, env(safe-area-inset-bottom, 1rem));
+}
+
+.announcement-marquee {
+  animation: announcement-scroll 32s linear infinite;
+}
+
+.announcement-marquee:hover,
+.announcement-marquee:focus-within {
+  animation-play-state: paused;
+}
+
+@keyframes announcement-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .announcement-marquee {
+    animation: none;
+  }
 }

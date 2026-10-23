@@ -56,7 +56,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const localAnnouncements: string[] = (() => {
     try {
       const stored = localStorage.getItem('jere_kretyen_church_announcements');
-      return stored ? JSON.parse(stored) : [
+      if (stored) {
+        const parsed: unknown = JSON.parse(stored);
+        return Array.isArray(parsed)
+          ? parsed.filter((announcement): announcement is string => typeof announcement === 'string')
+          : [];
+      }
+      return [
         'Culte d\'adoration et de louange tous les dimanches matin à 9h00.',
         'Jèn ak Lapriyè chak premye vandredi nan mwa a.'
       ];
@@ -65,6 +71,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
     }
   })();
   const announcements = sharedAnnouncements ?? localAnnouncements;
+  const cleanAnnouncements = Array.isArray(announcements) ? announcements.filter((announcement): announcement is string =>
+    typeof announcement === 'string' && announcement.trim().length > 0
+  ) : [];
 
   useEffect(() => {
     let active = true;
@@ -96,18 +105,35 @@ export const HomeView: React.FC<HomeViewProps> = ({
       <PWAInstallButton language={language} />
 
       {/* Church Announcements Banner if any */}
-      {announcements.length > 0 && (
-        <div className="p-3.5 rounded-2xl bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/30 text-slate-800 dark:text-amber-200 flex items-center gap-3">
+      {cleanAnnouncements.length > 0 && (
+        <section
+          aria-label={language === 'kr' ? 'Anons legliz' : 'Annonces de l’église'}
+          className="p-3 rounded-2xl bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/30 text-slate-800 dark:text-amber-200 flex items-center gap-3 overflow-hidden"
+        >
           <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
             <Megaphone className="w-4 h-4" />
           </div>
-          <div className="text-xs truncate flex-1">
-            <span className="font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider mr-1.5">
-              {language === 'kr' ? 'Nouvèl Legliz :' : 'Annonce :'}
-            </span>
-            <span>{announcements[0]}</span>
+          <div className="min-w-0 flex-1 overflow-hidden" tabIndex={0}>
+            <span className="sr-only">{language === 'kr' ? 'Nouvèl Legliz :' : 'Annonce :'}</span>
+            <div className="announcement-marquee flex w-max items-center text-xs font-bold uppercase tracking-wider">
+              {[0, 1].map((copy) => (
+                <div key={copy} aria-hidden={copy === 1} className="flex shrink-0 items-center gap-8 pr-8">
+                  {cleanAnnouncements.map((announcement, index) => (
+                    <span key={`${copy}-${index}`} className="inline-flex items-center gap-8 whitespace-nowrap">
+                      {index === 0 && (
+                        <span className="text-amber-700 dark:text-amber-400">
+                          {language === 'kr' ? 'Nouvèl Legliz :' : 'Annonce :'}
+                        </span>
+                      )}
+                      <span>{announcement}</span>
+                      <span aria-hidden="true" className="text-amber-500">✦</span>
+                    </span>
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        </section>
       )}
 
       {/* Verset du Jour (Card Hero) with BOTH French and Haitian Creole */}
