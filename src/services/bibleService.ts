@@ -73,6 +73,12 @@ class BibleService {
     return ch[verseIndex];
   }
 
+  private hasFrenchText(chapter: ChapterData): boolean {
+    return chapter.verses.some(
+      verse => verse.text.trim().length > 0 && !verse.text.trim().startsWith('[LSG 1910')
+    );
+  }
+
   // Get all books, optionally filtered by testament
   getLivres(testament?: Testament): BibleBook[] {
     if (!testament) return BIBLE_BOOKS;
@@ -108,15 +114,17 @@ class BibleService {
     // 1. Check in-memory cache
     if (this.cache.has(key)) {
       const cached = this.cache.get(key)!;
-      // Ensure Haitian Creole is filled
-      if (book && htBible) {
-        cached.verses.forEach(v => {
-          if (!v.textKr) {
-            v.textKr = this.getCreoleVerseText(htBible, book.number, chapter, v.verse);
-          }
-        });
+      if (this.hasFrenchText(cached)) {
+        if (book && htBible) {
+          cached.verses.forEach(v => {
+            if (!v.textKr) {
+              v.textKr = this.getCreoleVerseText(htBible, book.number, chapter, v.verse);
+            }
+          });
+        }
+        return cached;
       }
-      return cached;
+      this.cache.delete(key);
     }
 
     // 2. Check localStorage
@@ -124,7 +132,7 @@ class BibleService {
       const localData = localStorage.getItem(`bible_chapter_${key}`);
       if (localData) {
         const parsed: ChapterData = JSON.parse(localData);
-        if (parsed.verses && parsed.verses.length > 0) {
+        if (parsed.verses && parsed.verses.length > 0 && this.hasFrenchText(parsed)) {
           if (book && htBible) {
             parsed.verses.forEach(v => {
               if (!v.textKr) {
@@ -135,6 +143,7 @@ class BibleService {
           this.cache.set(key, parsed);
           return parsed;
         }
+        localStorage.removeItem(`bible_chapter_${key}`);
       }
     } catch {
       // ignore
@@ -146,48 +155,53 @@ class BibleService {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 6000);
 
-        const response = await fetch(
-          `https://bolls.life/get-chapter/FRLSG/${book.number}/${chapter}/`,
-          { signal: controller.signal }
-        );
-        clearTimeout(timeoutId);
+        try {
+          const response = await fetch(
+            `https://bolls.life/get-chapter/FRLSG/${book.number}/${chapter}/`,
+            { signal: controller.signal }
+          );
 
-        if (response.ok) {
-          const apiJson = await response.json();
-          if (Array.isArray(apiJson) && apiJson.length > 0) {
-            const verses: Verse[] = apiJson.map((item: { verse: number; text: string }) => {
-              const cleanText = item.text
-                .replace(/<[^>]*>/g, '')
-                .replace(/&nbsp;/g, ' ')
-                .replace(/&amp;/g, '&')
-                .replace(/&lt;/g, '<')
-                .replace(/&gt;/g, '>')
-                .trim();
+          if (response.ok) {
+            const apiJson = await response.json();
+            if (Array.isArray(apiJson) && apiJson.length > 0) {
+              const verses: Verse[] = apiJson.map((item: { verse: number; text: string }) => {
+                const cleanText = item.text
+                  .replace(/<[^>]*>/g, '')
+                  .replace(/&nbsp;/g, ' ')
+                  .replace(/&amp;/g, '&')
+                  .replace(/&lt;/g, '<')
+                  .replace(/&gt;/g, '>')
+                  .trim();
 
-              const creoleText = this.getCreoleVerseText(htBible, book.number, chapter, item.verse);
+                const creoleText = this.getCreoleVerseText(htBible, book.number, chapter, item.verse);
 
-              return {
-                verse: item.verse,
-                text: cleanText,
-                textKr: creoleText,
+                return {
+                  verse: item.verse,
+                  text: cleanText,
+                  textKr: creoleText,
+                };
+              });
+
+              const chapterData: ChapterData = {
+                bookId: book.id,
+                chapter,
+                translation: 'LSG1910',
+                verses,
               };
-            });
 
-            const chapterData: ChapterData = {
-              bookId: book.id,
-              chapter,
-              translation: 'LSG1910',
-              verses,
-            };
-
-            this.cache.set(key, chapterData);
-            try {
-              localStorage.setItem(`bible_chapter_${key}`, JSON.stringify(chapterData));
-            } catch {
-              // Local storage quota exceeded
+              if (this.hasFrenchText(chapterData)) {
+                this.cache.set(key, chapterData);
+                try {
+                  localStorage.setItem(`bible_chapter_${key}`, JSON.stringify(chapterData));
+                } catch {
+                  // Local storage quota exceeded
+                }
+                return chapterData;
+              }
             }
-            return chapterData;
           }
+        } finally {
+          clearTimeout(timeoutId);
         }
       } catch (e) {
         console.warn('Network fetch error for chapter:', e);
@@ -202,7 +216,7 @@ class BibleService {
         const chVerses = htBible[bookIndex].chapters[chIndex];
         const verses: Verse[] = chVerses.map((krText, idx) => ({
           verse: idx + 1,
-          text: `[LSG 1910 ${book.nameFr} ${chapter}:${idx + 1}]`,
+          text: '',
           textKr: krText,
         }));
 
@@ -212,7 +226,6 @@ class BibleService {
           translation: 'LSG1910',
           verses,
         };
-        this.cache.set(key, chData);
         return chData;
       }
     }

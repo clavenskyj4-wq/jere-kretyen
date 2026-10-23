@@ -121,6 +121,22 @@ export const MoreView: React.FC<MoreViewProps> = ({
         </p>
       </div>
 
+      {/* About and privacy information */}
+      <button
+        onClick={() => setShowAboutPrivacy(true)}
+        className="w-full p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700/50 text-left hover:border-amber-500 transition"
+      >
+        <div className="flex items-center gap-2 text-slate-900 dark:text-white font-bold text-sm">
+          <Shield className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          <span>{language === 'kr' ? 'Konsènan & Konfidansyalite' : 'À propos et politique de confidentialité'}</span>
+        </div>
+        <p className="mt-1.5 text-xs text-slate-600 dark:text-slate-300">
+          {language === 'kr'
+            ? 'Enfòmasyon sou aplikasyon an ak kijan done ou yo pwoteje.'
+            : 'Présentation de l’application et informations sur la protection de vos données.'}
+        </p>
+      </button>
+
       {/* PWA Install Button if available */}
       {isInstallable && (
         <button
@@ -271,22 +287,6 @@ export const MoreView: React.FC<MoreViewProps> = ({
           </div>
         </div>
       </div>
-
-      {/* Privacy Notice Card */}
-      <button
-        onClick={() => setShowAboutPrivacy(true)}
-        className="w-full p-5 rounded-3xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-left hover:border-amber-400 transition"
-      >
-        <div className="flex items-center gap-2 text-slate-900 dark:text-white font-bold text-sm">
-          <Shield className="w-4 h-4 text-emerald-500" />
-          <span>{language === 'kr' ? 'Konsènan & Konfidansyalite' : 'À propos & Confidentialité'}</span>
-        </div>
-        <p className="mt-2 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-          {language === 'kr'
-            ? 'Dekouvri misyon aplikasyon an ak fason done ou yo trete.'
-            : 'Consultez la présentation de l’application et sa notice de confidentialité.'}
-        </p>
-      </button>
 
       {/* Administration Card */}
       {onOpenAdmin && (

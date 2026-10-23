@@ -116,6 +116,8 @@ export const BibleView: React.FC<BibleViewProps> = ({
 
   const currentBook = bibleService.getLivreById(currentBookId);
   const bookName = currentBook ? (language === 'kr' ? currentBook.nameKr : currentBook.nameFr) : currentBookId;
+  const showFrench = language === 'fr' || showBilingual;
+  const showCreole = language === 'kr' || showBilingual;
 
   // Chapter navigation
   const goToPreviousChapter = () => {
@@ -381,6 +383,8 @@ export const BibleView: React.FC<BibleViewProps> = ({
                     : 'border-slate-200 dark:border-slate-700 text-slate-400'
                 }`}
                 title={language === 'kr' ? 'Montre vèsyon fransè ak kreyòl ansanm' : 'Affichage bilingue FR / Créole'}
+                aria-label={language === 'kr' ? 'Montre ou masque le français' : 'Afficher ou masquer le créole'}
+                aria-pressed={showBilingual}
               >
                 <Languages className="w-4 h-4" />
               </button>
@@ -430,6 +434,16 @@ export const BibleView: React.FC<BibleViewProps> = ({
             </div>
           ) : (
             <div ref={containerRef} className="space-y-3">
+              {chapterData?.verses.some((verse) => !verse.text.trim()) && (
+                <div
+                  role="status"
+                  className="rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-900 dark:border-amber-700/50 dark:bg-amber-950/30 dark:text-amber-200"
+                >
+                  {language === 'kr'
+                    ? 'Vèsè fransè yo poko disponib pou chapit sa a. Konekte ak entènèt epi relouvri chapit la pou chaje yo.'
+                    : 'Les versets français ne sont pas encore disponibles pour ce chapitre. Connectez-vous à Internet puis rouvrez le chapitre pour les charger.'}
+                </div>
+              )}
               {chapterData?.verses.map((v) => {
                 const isSelected = selectedVerseNum === v.verse;
                 const highlight = highlights.find(
@@ -458,23 +472,28 @@ export const BibleView: React.FC<BibleViewProps> = ({
                       </span>
 
                       <div className="flex-1 space-y-1">
-                        {/* French Text */}
-                        <p
-                          className="font-scripture text-slate-800 dark:text-slate-100 leading-relaxed"
-                          style={{ fontSize: `${fontSize}px` }}
-                        >
-                          {v.text}
-                        </p>
+                        {showFrench && v.text.trim() && (
+                          <p
+                            className="font-scripture text-slate-800 dark:text-slate-100 leading-relaxed"
+                            style={{ fontSize: `${fontSize}px` }}
+                          >
+                            {showBilingual && (
+                              <span className="mr-2 rounded border border-slate-300 px-1.5 py-0.5 font-sans text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                                Français:
+                              </span>
+                            )}
+                            {v.text}
+                          </p>
+                        )}
 
-                        {/* Haitian Creole parallel translation ALWAYS displayed */}
-                        {v.textKr && (
+                        {showCreole && v.textKr && (
                           <div className="pt-1.5 mt-1 border-t border-amber-500/20 dark:border-slate-800/80">
                             <p
                               className="font-scripture text-amber-900/90 dark:text-amber-200/90 leading-relaxed italic"
                               style={{ fontSize: `${Math.max(14, fontSize - 2)}px` }}
                             >
                               <span className="text-[10px] font-sans font-bold text-amber-600 dark:text-amber-400 not-italic mr-2 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 uppercase tracking-wider">
-                                Kreyòl:
+                                {showBilingual ? 'Kreyòl:' : 'Kreyòl'}
                               </span>
                               {v.textKr}
                             </p>
