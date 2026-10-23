@@ -15,6 +15,15 @@ create table if not exists public.shared_songs (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.instrumental_tracks (
+  id uuid primary key default gen_random_uuid(),
+  title text not null check (char_length(title) between 1 and 120),
+  artist text check (artist is null or char_length(artist) <= 120),
+  file_path text not null unique,
+  created_by uuid references auth.users (id) on delete set null default auth.uid(),
+  created_at timestamptz not null default now()
+);
+
 create table if not exists public.admin_activity (
   id bigint generated always as identity primary key,
   action text not null,
@@ -42,11 +51,14 @@ grant execute on function public.is_app_admin() to authenticated;
 alter table public.app_admins enable row level security;
 alter table public.app_settings enable row level security;
 alter table public.shared_songs enable row level security;
+alter table public.instrumental_tracks enable row level security;
 alter table public.admin_activity enable row level security;
 
 grant select on public.app_admins to authenticated;
 grant select on public.app_settings, public.shared_songs to anon, authenticated;
 grant insert, update, delete on public.app_settings, public.shared_songs to authenticated;
+grant select on public.instrumental_tracks to anon, authenticated;
+grant insert, delete on public.instrumental_tracks to authenticated;
 grant select, insert on public.admin_activity to authenticated;
 grant usage, select on sequence public.admin_activity_id_seq to authenticated;
 
@@ -70,6 +82,14 @@ create policy "Admins can manage shared songs"
   using ((select public.is_app_admin()))
   with check ((select public.is_app_admin()));
 
+create policy "Public can read instrumental tracks"
+  on public.instrumental_tracks for select to anon, authenticated
+  using (true);
+create policy "Admins can manage instrumental tracks"
+  on public.instrumental_tracks for all to authenticated
+  using ((select public.is_app_admin()))
+  with check ((select public.is_app_admin()));
+
 create policy "Admins can read activity"
   on public.admin_activity for select to authenticated
   using ((select public.is_app_admin()));
@@ -79,6 +99,13 @@ create policy "Admins can record activity"
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('branding', 'branding', true, 3145728, array['image/png', 'image/jpeg', 'image/webp'])
+on conflict (id) do update
+set public = excluded.public,
+    file_size_limit = excluded.file_size_limit,
+    allowed_mime_types = excluded.allowed_mime_types;
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('instrumentals', 'instrumentals', true, 26214400, array['audio/mpeg'])
 on conflict (id) do update
 set public = excluded.public,
     file_size_limit = excluded.file_size_limit,
@@ -97,3 +124,11 @@ create policy "Admins can update branding"
 create policy "Admins can delete branding"
   on storage.objects for delete to authenticated
   using (bucket_id = 'branding' and (select public.is_app_admin()));
+
+create policy "Public can view instrumentals"
+  on storage.objects for select to anon, authenticated
+  using (bucket_id = 'instrumentals');
+create policy "Admins can manage instrumentals"
+  on storage.objects for all to authenticated
+  using (bucket_id = 'instrumentals' and (select public.is_app_admin()))
+  with check (bucket_id = 'instrumentals' and (select public.is_app_admin()));

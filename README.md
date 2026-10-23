@@ -51,7 +51,7 @@ La Bible créole est mise en cache après son premier chargement réussi afin qu
 - Dans **Mon Espace → Paramètres**, choisissez une palette prédéfinie ou ajustez vous-même la couleur principale et la couleur d’accent. Ces préférences sont enregistrées sur cet appareil.
 - L’application utilise **Montserrat**; les grands titres sont en graisse 900 et en majuscules. Les annonces défilantes utilisent **Black Ops One** avec Montserrat en remplacement. Seules ces deux familles de polices sont chargées afin d’éviter les anciennes polices inutilisées. L’animation des annonces est désactivée si l’appareil demande une réduction des mouvements.
 - Dans **Enregistrements**, le mini-studio crée une nouvelle copie de la voix sans modifier l’original : compression vocale, timbre naturel/chaud/clair ou effet téléphone, réverbération et écho réglables, avec batterie, guitare ou clavier synthétisés en option. Le tempo et le volume de l’accompagnement sont réglables. Le traitement se fait sur le téléphone, sans envoyer la voix sur Internet, et ne nécessite pas de connexion. Il est limité aux enregistrements de cinq minutes ou moins.
-- Dans **Enregistrements**, deux instrumentales YouTube peuvent être lancées pendant que vous chantez et enregistrez. Internet est requis; YouTube fournit la lecture et peut imposer ses propres restrictions. L’enregistrement sauvegardé capte le microphone seulement : la piste YouTube n’est pas intégrée au fichier audio.
+- Dans **Enregistrements**, les utilisateurs consultent et écoutent les musiques MP3 publiées depuis l’onglet **Musique** de l’administration. Une piste peut jouer pendant que la personne chante et enregistre; l’enregistrement sauvegardé contient le microphone seulement, pas l’accompagnement. Une connexion Internet est nécessaire.
 - Les applications Android APK vérifient à leur ouverture si une version plus récente est publiée et proposent le lien vers sa compilation. L’installation de l’APK reste manuelle; son numéro de version augmente à chaque compilation. Au premier appui sur le micro, Android doit afficher sa demande d’autorisation dans l’application; si l’autorisation a déjà été refusée, il faudra la réactiver dans les paramètres Android.
 
 ### Générer et télécharger l’APK Android
@@ -76,6 +76,7 @@ L’espace d’administration nécessite un projet Supabase : l’ancien code PI
 
 1. Créez un projet Supabase et activez l’authentification par courriel et mot de passe.
 2. Dans **SQL Editor**, exécutez [`supabase/schema.sql`](./supabase/schema.sql).
+   Si le projet Supabase est déjà configuré, exécutez plutôt la migration [`supabase/instrumentals.sql`](./supabase/instrumentals.sql) pour ajouter le catalogue MP3 et son stockage.
 3. Créez votre compte dans **Authentication → Users**, puis ajoutez son identifiant UUID à la liste des administrateurs depuis le SQL Editor :
 
    ```sql
@@ -87,7 +88,7 @@ L’espace d’administration nécessite un projet Supabase : l’ancien code PI
 5. Pour le développement local, copiez `.env.example` vers `.env.local`, puis renseignez `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY`.
 6. Dans GitHub, ajoutez ces deux valeurs comme **Repository variables** (`Settings → Secrets and variables → Actions → Variables`) : `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY`. Le workflow de déploiement les injecte à la compilation.
 
-Les politiques RLS de `schema.sql` limitent les écritures aux comptes inscrits dans `app_admins`. Les rapports ne contiennent que des événements d’administration et des détails agrégés; aucune donnée personnelle d’utilisateur ni aucun enregistrement vocal n’est envoyé. Les enregistrements restent stockés sur l’appareil.
+Les politiques RLS de `schema.sql` limitent les écritures aux comptes inscrits dans `app_admins`. Dans l’onglet **Musique** de l’administration, téléversez un MP3 (25 Mo maximum), indiquez son titre et confirmez avoir les droits nécessaires à sa publication. Le catalogue et les fichiers audio sont publics en lecture; seuls les administrateurs autorisés peuvent ajouter ou supprimer des pistes. Les rapports ne contiennent que des événements d’administration et des détails agrégés; aucune donnée personnelle d’utilisateur ni aucun enregistrement vocal n’est envoyé. Les enregistrements restent stockés sur l’appareil.
 
 ### Format JSON pour les chants
 

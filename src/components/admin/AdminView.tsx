@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Lock,
   Unlock,
@@ -22,7 +22,7 @@ import { HYMNAL_SECTIONS } from '../../data/sampleSongs';
 import { songService } from '../../services/songService';
 import { HymnalSection, Language, Song, SongCategory } from '../../types';
 import { TRANSLATIONS } from '../../i18n/translations';
-import { adminBackendService, AdminActivity } from '../../services/adminBackendService';
+import { adminBackendService, AdminActivity, InstrumentalTrack } from '../../services/adminBackendService';
 
 interface AdminViewProps {
   language: Language;
@@ -59,7 +59,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ language, onBack }) => {
 
   // Admin tabs
   const [activeAdminTab, setActiveAdminTab] = useState<
-    'songs' | 'import' | 'announcements' | 'branding' | 'reports' | 'account'
+    'songs' | 'import' | 'music' | 'announcements' | 'branding' | 'reports' | 'account'
   >('songs');
 
   // Song management state
@@ -104,6 +104,12 @@ export const AdminView: React.FC<AdminViewProps> = ({ language, onBack }) => {
   const [activity, setActivity] = useState<AdminActivity[]>([]);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [instrumentalTracks, setInstrumentalTracks] = useState<InstrumentalTrack[]>([]);
+  const [instrumentalTitle, setInstrumentalTitle] = useState('');
+  const [instrumentalArtist, setInstrumentalArtist] = useState('');
+  const [instrumentalFile, setInstrumentalFile] = useState<File | null>(null);
+  const [instrumentalRightsConfirmed, setInstrumentalRightsConfirmed] = useState(false);
+  const instrumentalFormRef = useRef<HTMLFormElement>(null);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -143,6 +149,17 @@ export const AdminView: React.FC<AdminViewProps> = ({ language, onBack }) => {
     });
     return () => { active = false; };
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated || activeAdminTab !== 'music') return;
+    let active = true;
+    adminBackendService.getInstrumentalTracks().then(tracks => {
+      if (active) setInstrumentalTracks(tracks);
+    }).catch(error => {
+      if (active) setActionError(error instanceof Error ? error.message : 'Impossible de charger le catalogue musical.');
+    });
+    return () => { active = false; };
+  }, [isAuthenticated, activeAdminTab]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -310,6 +327,59 @@ export const AdminView: React.FC<AdminViewProps> = ({ language, onBack }) => {
       setAnnouncements(updated);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'Impossible de supprimer cette annonce.');
+    }
+  };
+
+  const handleUploadInstrumental = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!instrumentalFile) {
+      setActionError('Choisissez un fichier MP3 à publier.');
+      return;
+    }
+    if (!instrumentalRightsConfirmed) {
+      setActionError('Confirmez que vous avez le droit de publier cette musique.');
+      return;
+    }
+    setActionError(null);
+    setIsSubmitting(true);
+    try {
+      const track = await adminBackendService.uploadInstrumentalTrack(instrumentalTitle, instrumentalArtist, instrumentalFile);
+      setInstrumentalTitle('');
+      setInstrumentalArtist('');
+      setInstrumentalFile(null);
+      setInstrumentalRightsConfirmed(false);
+      instrumentalFormRef.current?.reset();
+      setInstrumentalTracks(current => [track, ...current]);
+      showToast('Instrumentale publiée pour tous les utilisateurs.');
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Impossible de publier cette instrumentale.');
+      try {
+        setInstrumentalTracks(await adminBackendService.getInstrumentalTracks());
+      } catch (refreshError) {
+        setActionError(current => `${current} Actualisation du catalogue impossible : ${refreshError instanceof Error ? refreshError.message : 'erreur inconnue.'}`);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteInstrumental = async (track: InstrumentalTrack) => {
+    if (!window.confirm(`Retirer « ${track.title} » du catalogue pour tous les utilisateurs ?`)) return;
+    setActionError(null);
+    setIsSubmitting(true);
+    try {
+      await adminBackendService.deleteInstrumentalTrack(track);
+      setInstrumentalTracks(current => current.filter(item => item.id !== track.id));
+      showToast('Instrumentale supprimée.');
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Impossible de supprimer cette instrumentale.');
+      try {
+        setInstrumentalTracks(await adminBackendService.getInstrumentalTracks());
+      } catch (refreshError) {
+        setActionError(current => `${current} Actualisation du catalogue impossible : ${refreshError instanceof Error ? refreshError.message : 'erreur inconnue.'}`);
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -503,6 +573,18 @@ export const AdminView: React.FC<AdminViewProps> = ({ language, onBack }) => {
             >
               <Upload className="w-3.5 h-3.5" />
               <span>{language === 'kr' ? 'Enpòtasyon an mas' : 'Import en masse'}</span>
+            </button>
+
+            <button
+              onClick={() => setActiveAdminTab('music')}
+              className={`py-2 rounded-xl transition flex items-center justify-center gap-1.5 ${
+                activeAdminTab === 'music'
+                  ? 'bg-[#12263F] text-amber-300 font-bold shadow'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-white'
+              }`}
+            >
+              <Music2 className="w-3.5 h-3.5" />
+              <span>{language === 'kr' ? 'Mizik' : 'Musique'}</span>
             </button>
 
             <button
@@ -817,6 +899,96 @@ export const AdminView: React.FC<AdminViewProps> = ({ language, onBack }) => {
                 )}
               </div>
             </div>
+          )}
+
+          {activeAdminTab === 'music' && (
+            <section className="space-y-4">
+              <div className="rounded-3xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-[#0D1C30]">
+                <h4 className="font-cinzel text-base font-bold text-slate-900 dark:text-white">
+                  {language === 'kr' ? 'Ajoute mizik ak enstrimantal' : 'Ajouter une musique ou une instrumentale'}
+                </h4>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  MP3 uniquement, 25 Mo maximum. Les pistes publiées seront accessibles à tous dans l’espace Enregistrements.
+                </p>
+                <form ref={instrumentalFormRef} onSubmit={handleUploadInstrumental} className="mt-4 space-y-3">
+                  <input
+                    type="text"
+                    required
+                    maxLength={120}
+                    value={instrumentalTitle}
+                    onChange={event => setInstrumentalTitle(event.target.value)}
+                    placeholder="Titre de la musique"
+                    className="w-full rounded-xl border border-slate-300 bg-slate-50 p-3 text-sm dark:border-slate-700 dark:bg-slate-900"
+                  />
+                  <input
+                    type="text"
+                    maxLength={120}
+                    value={instrumentalArtist}
+                    onChange={event => setInstrumentalArtist(event.target.value)}
+                    placeholder="Artiste ou source (facultatif)"
+                    className="w-full rounded-xl border border-slate-300 bg-slate-50 p-3 text-sm dark:border-slate-700 dark:bg-slate-900"
+                  />
+                  <input
+                    type="file"
+                    required
+                    accept=".mp3,audio/mpeg,audio/mp3"
+                    onChange={event => setInstrumentalFile(event.target.files?.[0] ?? null)}
+                    className="w-full rounded-xl border border-slate-300 bg-slate-50 p-3 text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-amber-500 file:px-3 file:py-2 file:font-bold file:text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                  />
+                  <label className="flex items-start gap-2 rounded-xl bg-amber-500/10 p-3 text-xs text-slate-700 dark:text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={instrumentalRightsConfirmed}
+                      onChange={event => setInstrumentalRightsConfirmed(event.target.checked)}
+                      className="mt-0.5 accent-amber-500"
+                    />
+                    <span>
+                      Je confirme que j’ai l’autorisation ou les droits nécessaires pour publier et partager ce fichier audio.
+                    </span>
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || !instrumentalFile || !instrumentalRightsConfirmed}
+                    className="flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-bold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Upload className="h-4 w-4" />
+                    {isSubmitting ? 'Téléversement…' : 'Publier dans le catalogue'}
+                  </button>
+                </form>
+              </div>
+
+              <div className="rounded-3xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-[#0D1C30]">
+                <h4 className="mb-3 font-bold text-sm text-slate-900 dark:text-white">
+                  Catalogue publié ({instrumentalTracks.length})
+                </h4>
+                {instrumentalTracks.length === 0 ? (
+                  <p className="rounded-xl bg-slate-50 p-4 text-xs text-slate-500 dark:bg-slate-900">
+                    Aucune musique publiée pour le moment.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {instrumentalTracks.map(track => (
+                      <div key={track.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 p-3 dark:border-slate-800">
+                        <Music2 className="h-5 w-5 shrink-0 text-amber-500" />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{track.title}</p>
+                          {track.artist && <p className="truncate text-xs text-slate-500">{track.artist}</p>}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteInstrumental(track)}
+                          disabled={isSubmitting}
+                          aria-label={`Supprimer ${track.title}`}
+                          className="rounded-xl p-2 text-slate-400 transition hover:bg-rose-500/10 hover:text-rose-500 disabled:opacity-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
           )}
 
           {/* TAB 3: CHURCH ANNOUNCEMENTS */}

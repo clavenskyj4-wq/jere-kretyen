@@ -8,6 +8,15 @@ export interface AdminActivity {
   created_at: string;
 }
 
+export interface InstrumentalTrack {
+  id: string;
+  title: string;
+  artist: string | null;
+  file_path: string;
+  created_at: string;
+  audio_url: string;
+}
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
 
@@ -212,6 +221,103 @@ export const adminBackendService = {
       await this.logActivity('announcements_updated', { count: announcements.length });
     } catch {
       throw new Error('Les annonces ont été publiées, mais leur événement n’a pas pu être ajouté à l’historique.');
+    }
+  },
+
+  async getInstrumentalTracks(): Promise<InstrumentalTrack[]> {
+    if (!client) return [];
+    const supabase = client;
+    const { data, error } = await supabase
+      .from('instrumental_tracks')
+      .select('id, title, artist, file_path, created_at')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data ?? []).map(track => ({
+      ...track,
+      audio_url: supabase.storage.from('instrumentals').getPublicUrl(track.file_path).data.publicUrl,
+    }));
+  },
+
+  async uploadInstrumentalTrack(title: string, artist: string, file: File): Promise<InstrumentalTrack> {
+    const supabase = requireClient();
+    if (!title.trim() || title.trim().length > 120) {
+      throw new Error('Le titre est obligatoire et ne doit pas dépasser 120 caractères.');
+    }
+    if (artist.trim().length > 120) {
+      throw new Error('Le nom de l’artiste ne doit pas dépasser 120 caractères.');
+    }
+    if (!file.name.toLowerCase().endsWith('.mp3') || (file.type && !['audio/mpeg', 'audio/mp3'].includes(file.type))) {
+      throw new Error('Choisissez un fichier MP3 valide.');
+    }
+    if (file.size === 0 || file.size > 25 * 1024 * 1024) {
+      throw new Error('Le fichier MP3 doit peser entre 1 octet et 25 Mo.');
+    }
+    const header = new Uint8Array(await file.slice(0, 3).arrayBuffer());
+    const hasId3Tag = header[0] === 0x49 && header[1] === 0x44 && header[2] === 0x33;
+    const hasMpegFrame = header[0] === 0xff && (header[1] & 0xe0) === 0xe0;
+    if (!hasId3Tag && !hasMpegFrame) {
+      throw new Error('Le fichier sélectionné ne semble pas être un MP3 valide.');
+    }
+
+    const id = crypto.randomUUID();
+    const filePath = `${id}.mp3`;
+    const { error: uploadError } = await supabase.storage
+      .from('instrumentals')
+      .upload(filePath, file, {
+        contentType: 'audio/mpeg',
+        cacheControl: '3600',
+        upsert: false,
+      });
+    if (uploadError) throw uploadError;
+
+    const { data, error: insertError } = await supabase
+      .from('instrumental_tracks')
+      .insert({
+        id,
+        title: title.trim(),
+        artist: artist.trim() || null,
+        file_path: filePath,
+      })
+      .select('id, title, artist, file_path, created_at')
+      .single();
+    if (insertError) {
+      const { error: cleanupError } = await supabase.storage.from('instrumentals').remove([filePath]);
+      if (cleanupError) {
+        throw new Error(`La piste n’a pas pu être publiée (${insertError.message}) et le fichier temporaire n’a pas pu être supprimé (${cleanupError.message}).`);
+      }
+      throw insertError;
+    }
+
+    const track: InstrumentalTrack = {
+      ...data,
+      audio_url: supabase.storage.from('instrumentals').getPublicUrl(data.file_path).data.publicUrl,
+    };
+    try {
+      await this.logActivity('instrumental_uploaded', { title: track.title, trackId: track.id });
+    } catch {
+      throw new Error('La piste a été publiée, mais son événement n’a pas pu être ajouté à l’historique.');
+    }
+    return track;
+  },
+
+  async deleteInstrumentalTrack(track: InstrumentalTrack): Promise<void> {
+    const supabase = requireClient();
+    const { error: deleteRowError } = await supabase
+      .from('instrumental_tracks')
+      .delete()
+      .eq('id', track.id);
+    if (deleteRowError) throw deleteRowError;
+
+    const { error: deleteFileError } = await supabase.storage
+      .from('instrumentals')
+      .remove([track.file_path]);
+    if (deleteFileError) {
+      throw new Error(`La piste a été retirée du catalogue, mais son fichier n’a pas pu être supprimé : ${deleteFileError.message}`);
+    }
+    try {
+      await this.logActivity('instrumental_deleted', { title: track.title, trackId: track.id });
+    } catch {
+      throw new Error('La piste a été supprimée, mais son événement n’a pas pu être ajouté à l’historique.');
     }
   },
 };

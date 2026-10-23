@@ -29,6 +29,7 @@ import { Language, Song } from '../../types';
 import { TRANSLATIONS } from '../../i18n/translations';
 import { recordingStorageService, StoredAudioRecording } from '../../services/recordingStorageService';
 import { createStudioMix, StudioMixOptions, StudioVoiceTone } from '../../services/audioProductionService';
+import { adminBackendService, InstrumentalTrack } from '../../services/adminBackendService';
 
 interface RecordingsViewProps {
   language: Language;
@@ -36,17 +37,6 @@ interface RecordingsViewProps {
   onClearSongForRecording?: () => void;
   onBack?: () => void;
 }
-
-const YOUTUBE_INSTRUMENTALS = [
-  {
-    id: 'ixubXx_RrzM',
-    title: 'Instrumental Praise and Worship Guitar',
-  },
-  {
-    id: 'uGt8FAv4Df8',
-    title: "Instrumental chants d'esperance",
-  },
-];
 
 export const RecordingsView: React.FC<RecordingsViewProps> = ({
   language,
@@ -62,7 +52,10 @@ export const RecordingsView: React.FC<RecordingsViewProps> = ({
   const [recordDuration, setRecordDuration] = useState(0);
   const [micVolume, setMicVolume] = useState(0);
   const [permissionError, setPermissionError] = useState<string | null>(null);
+  const [instrumentalTracks, setInstrumentalTracks] = useState<InstrumentalTrack[]>([]);
   const [selectedInstrumentalId, setSelectedInstrumentalId] = useState<string | null>(null);
+  const [isLoadingInstrumentals, setIsLoadingInstrumentals] = useState(true);
+  const [instrumentalError, setInstrumentalError] = useState<string | null>(null);
 
   // Audio elements & MediaRecorder
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -119,6 +112,34 @@ export const RecordingsView: React.FC<RecordingsViewProps> = ({
     loadRecordings();
     loadStorageEstimate();
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    if (!adminBackendService.isConfigured()) {
+      setInstrumentalError(language === 'kr'
+        ? 'Katalòg mizik la poko konfigire.'
+        : 'Le catalogue musical n’est pas encore configuré.');
+      setIsLoadingInstrumentals(false);
+      return () => { active = false; };
+    }
+    adminBackendService.getInstrumentalTracks()
+      .then(tracks => {
+        if (!active) return;
+        setInstrumentalTracks(tracks);
+        setSelectedInstrumentalId(current => current ?? tracks[0]?.id ?? null);
+      })
+      .catch(error => {
+        if (!active) return;
+        console.error('Could not load instrumental tracks.', error);
+        setInstrumentalError(language === 'kr'
+          ? 'Pa t kapab chaje katalòg mizik la. Verifye koneksyon entènèt la.'
+          : 'Impossible de charger le catalogue musical. Vérifiez votre connexion Internet.');
+      })
+      .finally(() => {
+        if (active) setIsLoadingInstrumentals(false);
+      });
+    return () => { active = false; };
+  }, [language]);
 
   const loadRecordings = async () => {
     try {
@@ -625,49 +646,69 @@ export const RecordingsView: React.FC<RecordingsViewProps> = ({
           </div>
         )}
 
-        {/* YouTube instrumentals play alongside microphone recording. */}
+        {/* The selected catalog track can play while the microphone records. */}
         <div className="mb-4 rounded-2xl border border-amber-500/25 bg-slate-950/60 p-4">
           <div className="mb-3 flex items-center gap-2">
             <Music2 className="h-4 w-4 text-amber-400" />
             <h4 className="text-sm font-bold text-amber-200">
-              {language === 'kr' ? 'Enstrimantal pou chante' : 'Instrumentales pour chanter'}
+              {language === 'kr' ? 'Mizik pou chante' : 'Musiques pour chanter'}
             </h4>
           </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {YOUTUBE_INSTRUMENTALS.map((instrumental, index) => (
-              <button
-                key={instrumental.id}
-                type="button"
-                onClick={() => setSelectedInstrumentalId(instrumental.id)}
-                aria-pressed={selectedInstrumentalId === instrumental.id}
-                className={`rounded-xl border px-3 py-2 text-left text-xs font-semibold transition ${
-                  selectedInstrumentalId === instrumental.id
-                    ? 'border-amber-400 bg-amber-500/15 text-amber-100'
-                    : 'border-slate-700 bg-slate-900/70 text-slate-300 hover:border-amber-500/60'
-                }`}
-              >
-                {index === 0
-                  ? language === 'kr' ? 'Lwanj ak adorasyon — gita' : 'Louange et adoration — guitare'
-                  : language === 'kr' ? 'Chant d’espérance — enstrimantal' : 'Chants d’espérance — instrumental'}
-              </button>
-            ))}
-          </div>
-          {selectedInstrumentalId && (
-            <div className="mt-3 overflow-hidden rounded-xl border border-slate-700 bg-black">
-              <iframe
-                className="aspect-video w-full"
-                src={`https://www.youtube-nocookie.com/embed/${selectedInstrumentalId}?playsinline=1&rel=0`}
-                title={YOUTUBE_INSTRUMENTALS.find((item) => item.id === selectedInstrumentalId)?.title ?? 'YouTube instrumental'}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                referrerPolicy="strict-origin-when-cross-origin"
-                allowFullScreen
-              />
-            </div>
+          {isLoadingInstrumentals ? (
+            <p className="text-xs text-slate-400">{language === 'kr' ? 'Ap chaje mizik yo…' : 'Chargement des musiques…'}</p>
+          ) : instrumentalError ? (
+            <p role="alert" className="text-xs text-rose-300">{instrumentalError}</p>
+          ) : instrumentalTracks.length === 0 ? (
+            <p className="text-xs text-slate-400">
+              {language === 'kr' ? 'Pa gen mizik ki disponib pou kounye a.' : 'Aucune musique n’est encore disponible.'}
+            </p>
+          ) : (
+            <>
+              <div className="mb-3 max-h-44 space-y-2 overflow-y-auto">
+                {instrumentalTracks.map(track => (
+                  <button
+                    key={track.id}
+                    type="button"
+                    onClick={() => setSelectedInstrumentalId(track.id)}
+                    aria-pressed={selectedInstrumentalId === track.id}
+                    className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition ${
+                      selectedInstrumentalId === track.id
+                        ? 'border-amber-400 bg-amber-500/15 text-amber-100'
+                        : 'border-slate-700 bg-slate-900/70 text-slate-300 hover:border-amber-500/60'
+                    }`}
+                  >
+                    <Music2 className="h-4 w-4 shrink-0 text-amber-400" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-xs font-semibold">{track.title}</span>
+                      {track.artist && <span className="mt-0.5 block truncate text-[11px] text-slate-400">{track.artist}</span>}
+                    </span>
+                    <Play className="h-4 w-4 shrink-0" />
+                  </button>
+                ))}
+              </div>
+              {instrumentalTracks.filter(track => track.id === selectedInstrumentalId).map(track => (
+                <div key={track.id} className="rounded-xl border border-slate-700 bg-slate-900/70 p-2">
+                  <p className="mb-2 truncate text-xs font-semibold text-slate-200">{track.title}</p>
+                  <audio
+                    key={track.id}
+                    className="h-10 w-full"
+                    controls
+                    preload="none"
+                    src={track.audio_url}
+                    title={track.title}
+                  >
+                    {language === 'kr'
+                      ? 'Navigatè sa a pa sipòte lekti odyo.'
+                      : 'Votre navigateur ne prend pas en charge la lecture audio.'}
+                  </audio>
+                </div>
+              ))}
+            </>
           )}
           <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
             {language === 'kr'
-              ? 'Chwazi yon mizik epi peze bouton lekti YouTube la, apre sa kòmanse anrejistre. Enstrimantal la jwe an menm tan, men fichye ki sove a anrejistre mikwo a sèlman. Entènèt nesesè.'
-              : 'Choisissez une piste et lancez la lecture YouTube, puis démarrez l’enregistrement. L’instrumentale continue pendant le chant, mais le fichier sauvegardé contient la voix du micro uniquement. Connexion Internet requise.'}
+              ? 'Chwazi mizik la, peze lekti, epi kòmanse anrejistre an menm tan. Fichye anrejistreman an gen vwa mikwo a sèlman. Koneksyon entènèt nesesè.'
+              : 'Sélectionnez une piste, lancez sa lecture, puis démarrez l’enregistrement : les deux fonctionnent en même temps. Le fichier enregistré contient uniquement la voix du micro. Connexion Internet requise.'}
           </p>
         </div>
 
