@@ -20,14 +20,34 @@ export const BibleSearchModal: React.FC<BibleSearchModalProps> = ({
   const t = TRANSLATIONS[language];
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
-    if (query.trim().length >= 2) {
-      const hits = bibleService.searchVerses(query, language);
-      setResults(hits);
-    } else {
+    const trimmedQuery = query.trim();
+    if (trimmedQuery.length < 2) {
       setResults([]);
+      setIsSearching(false);
+      return;
     }
+
+    const controller = new AbortController();
+    setIsSearching(true);
+    const timeout = window.setTimeout(() => {
+      bibleService.searchVersesGlobal(trimmedQuery, language, controller.signal)
+        .then(setResults)
+        .catch((error: unknown) => {
+          if (!(error instanceof DOMException && error.name === 'AbortError')) {
+            console.error('Could not search Bible verses.', error);
+            setResults([]);
+          }
+        })
+        .finally(() => setIsSearching(false));
+    }, 300);
+
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
   }, [query, language]);
 
   if (!isOpen) return null;
@@ -49,7 +69,7 @@ export const BibleSearchModal: React.FC<BibleSearchModalProps> = ({
           <div className="flex items-center gap-2">
             <Search className="w-5 h-5 text-amber-400" />
             <h3 className="font-cinzel font-bold text-base text-amber-300">
-              {language === 'kr' ? 'Chèche nan Labib la' : 'Rechercher dans la Bible'}
+              {language === 'kr' ? 'Chèche tout Labib la' : 'Rechercher dans toute la Bible'}
             </h3>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-white transition">
@@ -102,7 +122,13 @@ export const BibleSearchModal: React.FC<BibleSearchModalProps> = ({
 
         {/* Results List */}
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
-          {query.trim().length >= 2 && results.length === 0 && (
+          {isSearching && (
+            <div className="py-6 text-center text-slate-400 text-sm">
+              {language === 'kr' ? 'N ap chèche nan Labib la…' : 'Recherche dans toute la Bible…'}
+            </div>
+          )}
+
+          {!isSearching && query.trim().length >= 2 && results.length === 0 && (
             <div className="text-center py-10 text-slate-400 text-sm">
               {language === 'kr'
                 ? `Nou pa jwenn okenn vèsè pou « ${query} »`
@@ -132,10 +158,11 @@ export const BibleSearchModal: React.FC<BibleSearchModalProps> = ({
                     </span>
                   </div>
 
-                  {/* French Louis Segond Text */}
-                  <p className="text-xs sm:text-sm font-scripture text-slate-800 dark:text-slate-200 leading-relaxed">
-                    « {r.text} »
-                  </p>
+                  {r.text && (
+                    <p className="text-xs sm:text-sm font-scripture text-slate-800 dark:text-slate-200 leading-relaxed">
+                      « {r.text} »
+                    </p>
+                  )}
 
                   {/* Haitian Creole Parallel Verse ALWAYS DISPLAYED */}
                   {r.textKr && (

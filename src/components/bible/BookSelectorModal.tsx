@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { X, Search, ChevronRight, BookOpen } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { X, Search, ChevronRight, BookOpen, Info, ChevronDown } from 'lucide-react';
 import { BIBLE_BOOKS, CATEGORY_LABELS } from '../../data/bibleBooks';
+import { BOOK_HISTORICAL_INFO } from '../../data/bookHistoricalInfo';
 import { BibleBook, Language, Testament } from '../../types';
 import { TRANSLATIONS } from '../../i18n/translations';
 
@@ -24,9 +25,17 @@ export const BookSelectorModal: React.FC<BookSelectorModalProps> = ({
   const t = TRANSLATIONS[language];
   const [activeTestament, setActiveTestament] = useState<Testament>('NT');
   const [selectedBook, setSelectedBook] = useState<BibleBook | null>(
-    () => BIBLE_BOOKS.find(b => b.id === currentBookId) || BIBLE_BOOKS[42] // default Jean
+    () => BIBLE_BOOKS.find(b => b.id === currentBookId) || BIBLE_BOOKS[39]
   );
   const [searchQuery, setSearchQuery] = useState('');
+  const [showHistoricalInfo, setShowHistoricalInfo] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedBook(BIBLE_BOOKS.find(book => book.id === currentBookId) || BIBLE_BOOKS[39]);
+      setShowHistoricalInfo(false);
+    }
+  }, [currentBookId, isOpen]);
 
   if (!isOpen) return null;
 
@@ -46,6 +55,7 @@ export const BookSelectorModal: React.FC<BookSelectorModalProps> = ({
 
   const handleBookClick = (book: BibleBook) => {
     setSelectedBook(book);
+    setShowHistoricalInfo(false);
   };
 
   const handleChapterClick = (ch: number) => {
@@ -170,6 +180,40 @@ export const BookSelectorModal: React.FC<BookSelectorModalProps> = ({
                     </p>
                   </div>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowHistoricalInfo(value => !value)}
+                  aria-expanded={showHistoricalInfo}
+                  className="mb-3 flex w-full items-center justify-between gap-2 rounded-xl border border-amber-500/30 bg-amber-50 p-3 text-left text-xs font-semibold text-amber-900 dark:bg-amber-950/30 dark:text-amber-200"
+                >
+                  <span className="flex items-center gap-2">
+                    <Info className="h-4 w-4 shrink-0" />
+                    {language === 'kr' ? 'Istwa ak orijin liv sa a' : 'Auteur et contexte historique'}
+                  </span>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${showHistoricalInfo ? 'rotate-180' : ''}`} />
+                </button>
+
+                {showHistoricalInfo && (
+                  <div className="mb-3 space-y-2 rounded-xl border border-slate-200 bg-white p-3 text-xs leading-relaxed dark:border-slate-700 dark:bg-slate-900">
+                    <p className="text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">
+                      {language === 'kr'
+                        ? 'Dat yo ak atribisyon yo se apwoksimasyon; kèk pwen rete diskite.'
+                        : 'Les dates et attributions sont indicatives; plusieurs points restent débattus.'}
+                    </p>
+                    {[
+                      ['Auteur', BOOK_HISTORICAL_INFO[selectedBook.id]?.author],
+                      ['Période', BOOK_HISTORICAL_INFO[selectedBook.id]?.date],
+                      ['Lieu', BOOK_HISTORICAL_INFO[selectedBook.id]?.place],
+                      ['Contexte', BOOK_HISTORICAL_INFO[selectedBook.id]?.context],
+                    ].map(([label, value]) => value && (
+                      <p key={label} className="text-slate-700 dark:text-slate-300">
+                        <strong className="text-slate-900 dark:text-white">{label} : </strong>
+                        {value}
+                      </p>
+                    ))}
+                  </div>
+                )}
 
                 <div className="grid grid-cols-5 sm:grid-cols-6 gap-2">
                   {Array.from({ length: selectedBook.chaptersCount }, (_, i) => i + 1).map((ch) => {

@@ -44,6 +44,13 @@ Une fois publiée en HTTPS :
 
 La Bible créole est mise en cache après son premier chargement réussi afin qu’elle soit disponible hors ligne. Un APK Android peut être généré par le workflow **Build Android APK**. Un installateur `.exe` nécessite un emballage Windows séparé; aucun APK ne s’installe sur iOS.
 
+### Lecture, recherche et personnalisation
+
+- Le lecteur biblique s’ouvre sur Matthieu 1. La recherche depuis l’écran Bible porte sur l’ensemble des livres; les résultats créoles couvrent les textes créoles chargés dans l’application et la recherche française utilise le service de Bible en ligne.
+- Dans le sélecteur de livre, ouvrez **Auteur et contexte historique** pour consulter les attributions, périodes, lieux et circonstances. Les dates sont indicatives et les attributions anciennes sont parfois discutées.
+- Dans **Mon Espace → Paramètres**, choisissez une palette prédéfinie ou ajustez vous-même la couleur principale et la couleur d’accent. Ces préférences sont enregistrées sur cet appareil.
+- Dans **Enregistrements**, le bouton Studio crée une copie avec compression/réverbération vocale et un accompagnement synthétisé facultatif (batterie, guitare, clavier). Le mixage se fait sur le téléphone et n’envoie pas la voix sur Internet; pour fonctionner localement, il ne nécessite pas de connexion. Le traitement est limité aux enregistrements de cinq minutes ou moins.
+
 ### Générer et télécharger l’APK Android
 
 Le projet Android utilise Capacitor et embarque une compilation de l’application dans l’APK. Les contenus partagés et l’authentification continuent d’utiliser Supabase.

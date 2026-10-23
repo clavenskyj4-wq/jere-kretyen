@@ -38,8 +38,8 @@ interface BibleViewProps {
 
 export const BibleView: React.FC<BibleViewProps> = ({
   language,
-  initialBookId = 'JHN',
-  initialChapter = 3,
+  initialBookId = 'MAT',
+  initialChapter = 1,
   initialVerse,
   onOpenRecordWithVerse,
   onBack,
@@ -434,14 +434,21 @@ export const BibleView: React.FC<BibleViewProps> = ({
             </div>
           ) : (
             <div ref={containerRef} className="space-y-3">
-              {chapterData?.verses.some((verse) => !verse.text.trim()) && (
+              {chapterData && (
+                chapterData.verses.length === 0 ||
+                chapterData.verses.some((verse) => !verse.text.trim())
+              ) && (
                 <div
                   role="status"
                   className="rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-900 dark:border-amber-700/50 dark:bg-amber-950/30 dark:text-amber-200"
                 >
-                  {language === 'kr'
-                    ? 'Vèsè fransè yo poko disponib pou chapit sa a. Konekte ak entènèt epi relouvri chapit la pou chaje yo.'
-                    : 'Les versets français ne sont pas encore disponibles pour ce chapitre. Connectez-vous à Internet puis rouvrez le chapitre pour les charger.'}
+                  {chapterData.verses.length === 0
+                    ? language === 'kr'
+                      ? 'Nou pa t kapab chaje chapit sa a. Tcheke koneksyon entènèt la epi relouvri chapit la.'
+                      : 'Impossible de charger ce chapitre. Vérifiez votre connexion Internet puis rouvrez-le.'
+                    : language === 'kr'
+                      ? 'Vèsè fransè yo poko disponib pou chapit sa a. Konekte ak entènèt epi relouvri chapit la pou chaje yo.'
+                      : 'Les versets français ne sont pas encore disponibles pour ce chapitre. Connectez-vous à Internet puis rouvrez le chapitre pour les charger.'}
                 </div>
               )}
               {chapterData?.verses.map((v) => {

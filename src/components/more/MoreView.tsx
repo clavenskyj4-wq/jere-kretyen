@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { Language } from '../../types';
 import { TRANSLATIONS } from '../../i18n/translations';
-import { storageService } from '../../services/storageService';
+import { APP_PALETTES, AppPalette, storageService } from '../../services/storageService';
 import { bibleService } from '../../services/bibleService';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 import { AboutPrivacyView } from './AboutPrivacyView';
@@ -27,6 +27,8 @@ interface MoreViewProps {
   onLanguageChange: (lang: Language) => void;
   theme: 'dark' | 'light';
   onThemeToggle: () => void;
+  palette: AppPalette;
+  onPaletteChange: (palette: AppPalette) => void;
   onBack?: () => void;
   onOpenAdmin?: () => void;
 }
@@ -36,6 +38,8 @@ export const MoreView: React.FC<MoreViewProps> = ({
   onLanguageChange,
   theme,
   onThemeToggle,
+  palette,
+  onPaletteChange,
   onBack,
   onOpenAdmin,
 }) => {
@@ -209,6 +213,72 @@ export const MoreView: React.FC<MoreViewProps> = ({
               <p className="text-xs text-slate-400">
                 {theme === 'dark' ? t.settings.darkMode : t.settings.lightMode}
               </p>
+            </div>
+          </div>
+
+          {/* App color palette */}
+          <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+            <div>
+              <h4 className="font-semibold text-sm text-slate-900 dark:text-white">
+                {language === 'kr' ? 'Koulè aplikasyon an' : 'Couleurs de l’application'}
+              </h4>
+              <p className="text-xs text-slate-400 mt-1">
+                {language === 'kr'
+                  ? 'Chwazi yon palèt oswa pèsonalize koulè yo. Chwa a rete sou aparèy sa a.'
+                  : 'Choisissez une palette ou personnalisez les couleurs. Votre choix reste sur cet appareil.'}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {Object.entries(APP_PALETTES).map(([id, preset]) => {
+                const names: Record<string, string> = {
+                  classic: language === 'kr' ? 'Klasik' : 'Classique',
+                  ocean: language === 'kr' ? 'Oseyan' : 'Océan',
+                  violet: language === 'kr' ? 'Vyolèt' : 'Violet',
+                  forest: language === 'kr' ? 'Forè' : 'Forêt',
+                };
+                const isSelected = palette.primary === preset.primary && palette.accent === preset.accent;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => onPaletteChange(preset)}
+                    aria-pressed={isSelected}
+                    className={`flex items-center gap-2 rounded-xl border p-2 text-xs font-semibold transition ${
+                      isSelected
+                        ? 'border-amber-500 bg-amber-50 dark:bg-slate-800'
+                        : 'border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    <span className="flex h-6 w-10 overflow-hidden rounded-md">
+                      <span className="w-1/2" style={{ backgroundColor: preset.primary }} />
+                      <span className="w-1/2" style={{ backgroundColor: preset.accent }} />
+                    </span>
+                    {names[id]}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 dark:bg-slate-900 px-3 py-2 text-xs text-slate-700 dark:text-slate-300">
+                {language === 'kr' ? 'Koulè prensipal' : 'Couleur principale'}
+                <input
+                  type="color"
+                  value={palette.primary}
+                  onChange={(event) => onPaletteChange({ ...palette, primary: event.target.value })}
+                  aria-label={language === 'kr' ? 'Chwazi koulè prensipal la' : 'Choisir la couleur principale'}
+                  className="h-8 w-10 cursor-pointer rounded border-0 bg-transparent p-0"
+                />
+              </label>
+              <label className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 dark:bg-slate-900 px-3 py-2 text-xs text-slate-700 dark:text-slate-300">
+                {language === 'kr' ? 'Koulè aksan' : 'Couleur d’accent'}
+                <input
+                  type="color"
+                  value={palette.accent}
+                  onChange={(event) => onPaletteChange({ ...palette, accent: event.target.value })}
+                  aria-label={language === 'kr' ? 'Chwazi koulè aksan an' : 'Choisir la couleur d’accent'}
+                  className="h-8 w-10 cursor-pointer rounded border-0 bg-transparent p-0"
+                />
+              </label>
             </div>
           </div>
 

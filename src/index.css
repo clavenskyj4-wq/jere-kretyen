@@ -17,6 +17,29 @@
   }
 }
 
+.app-header {
+  background-color: var(--app-primary, #12263f);
+}
+
+.app-nav {
+  background-color: color-mix(in srgb, var(--app-primary, #12263f) 95%, transparent);
+}
+
+.app-shell [class~="bg-amber-500"] {
+  background-color: var(--app-accent, #c9a227);
+}
+
+.app-shell [class~="text-amber-300"],
+.app-shell [class~="text-amber-400"],
+.app-shell [class~="text-amber-500"] {
+  color: var(--app-accent, #c9a227);
+}
+
+.app-shell [class~="border-amber-500"],
+.app-shell [class~="border-amber-400"] {
+  border-color: var(--app-accent, #c9a227);
+}
+
 .font-cinzel {
   font-family: 'Cinzel', serif;
 }

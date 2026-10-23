@@ -31,7 +31,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#12263F]/95 backdrop-blur-md border-t border-slate-800 text-slate-300 safe-pb">
+    <nav className="app-nav fixed bottom-0 left-0 right-0 z-40 backdrop-blur-md border-t border-slate-800 text-slate-300 safe-pb">
       <div className="max-w-md mx-auto grid grid-cols-5 h-16">
         {items.map((item) => {
           const Icon = item.icon;

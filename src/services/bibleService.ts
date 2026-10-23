@@ -240,11 +240,8 @@ class BibleService {
       chapter,
       translation: 'LSG1910',
       verses: [
-        {
-          verse: 1,
-          text: `Lecture de ${book?.nameFr || bookId} chapitre ${chapter} (Louis Segond 1910).`,
-          textKr: `Lekti nan ${book?.nameKr || bookId} chapit ${chapter} (Kreyòl Ayisyen).`,
-        }
+        // An empty chapter lets the reader explain that it could not be loaded
+        // instead of presenting a status message as if it were a Bible verse.
       ],
     };
   }
@@ -328,6 +325,110 @@ class BibleService {
     });
 
     return results.slice(0, 30);
+  }
+
+  async searchVersesGlobal(
+    query: string,
+    lang: Language,
+    signal?: AbortSignal
+  ): Promise<SearchResult[]> {
+    const q = query.trim();
+    if (q.length < 2) return [];
+
+    const refMatch = q.match(/^([a-zà-ÿ0-9\s]+?)\s*(\d+)(?::(\d+))?$/i);
+    if (refMatch) {
+      const book = this.findBookByName(refMatch[1]);
+      if (book) {
+        const chapterNumber = Number(refMatch[2]);
+        const verseNumber = refMatch[3] ? Number(refMatch[3]) : undefined;
+        if (chapterNumber > 0 && chapterNumber <= book.chaptersCount) {
+          const chapter = await this.getChapitre(book.id, chapterNumber);
+          const matches = chapter.verses
+            .filter(verse => !verseNumber || verse.verse === verseNumber)
+            .map(verse => ({
+              book,
+              chapter: chapterNumber,
+              verse: verse.verse,
+              text: verse.text,
+              textKr: verse.textKr,
+            }));
+          if (matches.length > 0) return matches.slice(0, 30);
+        }
+      }
+    }
+
+    const localResults = this.searchVerses(q, lang);
+    if (lang === 'kr') {
+      const htBible = await this.getHaitianBible();
+      if (htBible) {
+        const normalizedQuery = q.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        const creoleResults: SearchResult[] = [];
+        htBible.forEach((bookData, bookIndex) => {
+          const book = BIBLE_BOOKS[bookIndex];
+          if (!book) return;
+          bookData.chapters.forEach((verses, chapterIndex) => {
+            verses.forEach((textKr, verseIndex) => {
+              const normalizedText = textKr.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+              if (normalizedText.includes(normalizedQuery)) {
+                const cachedVerse = this.cache.get(`${book.id}_${chapterIndex + 1}`)
+                  ?.verses.find(verse => verse.verse === verseIndex + 1);
+                creoleResults.push({
+                  book,
+                  chapter: chapterIndex + 1,
+                  verse: verseIndex + 1,
+                  text: cachedVerse?.text || '',
+                  textKr,
+                });
+              }
+            });
+          });
+        });
+        if (creoleResults.length > 0) return creoleResults.slice(0, 30);
+      }
+    }
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return localResults;
+
+    try {
+      const response = await fetch(
+        `https://bolls.life/find/FRLSG/${encodeURIComponent(q)}/`,
+        { signal }
+      );
+      if (!response.ok) throw new Error(`Bible search failed with status ${response.status}`);
+      const matches = await response.json() as Array<{ book: number; chapter: number; verse: number; text: string }>;
+      if (!Array.isArray(matches)) throw new Error('Bible search returned an invalid response');
+
+      const htBible = await this.getHaitianBible();
+      const results = matches.flatMap((match) => {
+        const book = BIBLE_BOOKS.find(candidate => candidate.number === match.book);
+        if (!book) return [];
+        const cachedChapter = this.cache.get(`${book.id}_${match.chapter}`);
+        const cachedVerse = cachedChapter?.verses.find(verse => verse.verse === match.verse);
+        const textKr = cachedVerse?.textKr ||
+          this.getCreoleVerseText(htBible, book.number, match.chapter, match.verse);
+        return [{
+          book,
+          chapter: match.chapter,
+          verse: match.verse,
+          text: match.text.replace(/<[^>]*>/g, '').trim(),
+          textKr,
+        }];
+      });
+      const combined: SearchResult[] = [...results];
+      localResults.forEach((localResult) => {
+        if (!combined.some(result =>
+          result.book.id === localResult.book.id &&
+          result.chapter === localResult.chapter &&
+          result.verse === localResult.verse
+        )) {
+          combined.push(localResult);
+        }
+      });
+      return combined.slice(0, 30);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') throw error;
+      console.warn('Online Bible search failed; showing local results instead.', error);
+      return localResults;
+    }
   }
 
   getVersetDuJour(): DailyVerse {

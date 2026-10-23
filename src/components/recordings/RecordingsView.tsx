@@ -28,6 +28,7 @@ import {
 import { Language, Song } from '../../types';
 import { TRANSLATIONS } from '../../i18n/translations';
 import { recordingStorageService, StoredAudioRecording } from '../../services/recordingStorageService';
+import { createStudioMix, StudioMixOptions } from '../../services/audioProductionService';
 
 interface RecordingsViewProps {
   language: Language;
@@ -81,6 +82,15 @@ export const RecordingsView: React.FC<RecordingsViewProps> = ({
   const [editTitle, setEditTitle] = useState('');
   const [editNote, setEditNote] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [studioRecording, setStudioRecording] = useState<StoredAudioRecording | null>(null);
+  const [studioOptions, setStudioOptions] = useState<StudioMixOptions>({
+    studioVoice: true,
+    drums: false,
+    guitar: false,
+    keyboard: true,
+  });
+  const [isProcessingStudioMix, setIsProcessingStudioMix] = useState(false);
+  const [studioError, setStudioError] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -377,9 +387,48 @@ export const RecordingsView: React.FC<RecordingsViewProps> = ({
     }
   };
 
+  const handleCreateStudioMix = async () => {
+    if (!studioRecording || isProcessingStudioMix) return;
+    setIsProcessingStudioMix(true);
+    setStudioError(null);
+    try {
+      const audioBlob = await createStudioMix(studioRecording.audioBlob, studioOptions);
+      const mixedRecording: StoredAudioRecording = {
+        ...studioRecording,
+        id: `rec_studio_${Date.now()}`,
+        title: `${studioRecording.title} (${language === 'kr' ? 'Studio' : 'Studio'})`,
+        audioBlob,
+        createdAt: Date.now(),
+        sizeBytes: audioBlob.size,
+        mimeType: audioBlob.type,
+        isFavorite: false,
+        note: language === 'kr'
+          ? 'Vèsyon estidyo kreye sou aparèy sa a.'
+          : 'Version studio créée sur cet appareil.',
+      };
+      await recordingStorageService.save(mixedRecording);
+      await loadRecordings();
+      await loadStorageEstimate();
+      setStudioRecording(null);
+      showToast(language === 'kr' ? 'Nouvo vèsyon Studio a anrejistre !' : 'Nouvelle version studio enregistrée !');
+    } catch (error) {
+      console.error('Could not create studio mix.', error);
+      const message = error instanceof Error ? error.message : '';
+      setStudioError(message.includes('five minutes')
+        ? language === 'kr'
+          ? 'Tretman estidyo a limite a anrejistreman ki dire 5 minit oswa mwens.'
+          : 'Le traitement studio est limité aux enregistrements de 5 minutes ou moins.'
+        : language === 'kr'
+          ? 'Nou pa t kapab trete anrejistreman an. Verifye fòma fichye a epi eseye ankò.'
+          : 'Le traitement a échoué. Vérifiez le format de l’enregistrement puis réessayez.');
+    } finally {
+      setIsProcessingStudioMix(false);
+    }
+  };
+
   // Share recording audio file or download
   const handleShareRecording = async (rec: StoredAudioRecording) => {
-    const extension = rec.mimeType.includes('mp4') ? 'mp4' : 'webm';
+    const extension = rec.mimeType.includes('wav') ? 'wav' : rec.mimeType.includes('mp4') ? 'mp4' : 'webm';
     const filename = `${rec.title.replace(/[^a-zA-Z0-9]/g, '_')}.${extension}`;
 
     if (navigator.share) {
@@ -720,8 +769,20 @@ export const RecordingsView: React.FC<RecordingsViewProps> = ({
                       </div>
                     </div>
 
-                    {/* Actions: Edit, Favorite, Share, Delete */}
-                    <div className="flex items-center gap-1 shrink-0">
+                    {/* Actions: Studio, Edit, Favorite, Share, Delete */}
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStudioRecording(rec);
+                          setStudioError(null);
+                        }}
+                        className="p-2 rounded-xl text-slate-400 hover:text-amber-500 transition"
+                        title={language === 'kr' ? 'Pèsonalize vwa a ak mizik' : 'Personnaliser la voix et ajouter des instruments'}
+                        aria-label={language === 'kr' ? 'Louvri estidyo vwa a' : 'Ouvrir le studio vocal'}
+                      >
+                        <Sparkles className="w-4 h-4" />
+                      </button>
                       <button
                         onClick={() => toggleFavorite(rec)}
                         className={`p-2 rounded-xl transition ${
@@ -820,6 +881,102 @@ export const RecordingsView: React.FC<RecordingsViewProps> = ({
           </div>
         )}
       </div>
+
+      {studioRecording && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="studio-mix-title"
+            className="w-full max-w-md rounded-3xl border border-amber-500/30 bg-white p-5 text-slate-900 shadow-2xl dark:bg-[#0D1C30] dark:text-white space-y-4"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 id="studio-mix-title" className="font-cinzel text-lg font-bold">
+                  {language === 'kr' ? 'Estidyo vwa' : 'Studio vocal'}
+                </h3>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{studioRecording.title}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStudioRecording(null)}
+                disabled={isProcessingStudioMix}
+                className="rounded-lg p-1 text-slate-400 hover:text-slate-700 disabled:opacity-40 dark:hover:text-white"
+                aria-label={language === 'kr' ? 'Fèmen' : 'Fermer'}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="rounded-xl border border-emerald-300/60 bg-emerald-50 p-3 text-xs leading-relaxed text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">
+              <ShieldCheck className="mr-1 inline h-4 w-4" />
+              {language === 'kr'
+                ? 'Tretman an fèt dirèkteman sou telefòn ou. Vwa a pa voye sou entènèt.'
+                : 'Le traitement se fait sur votre appareil. Votre voix n’est pas téléversée ni envoyée à un service externe.'}
+            </div>
+
+            <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+              {language === 'kr'
+                ? 'Chwazi yon efè vwa ak enstriman pou kreye yon nouvo kopi. Sa yo se son sentetize pou yon akonpayman senp.'
+                : 'Choisissez un effet vocal et des instruments pour créer une nouvelle copie. Les instruments sont synthétisés et fournissent un accompagnement simple.'}
+            </p>
+
+            <div className="space-y-2">
+              {([
+                ['studioVoice', language === 'kr' ? 'Vwa estidyo — konpresyon ak ti reverberasyon' : 'Voix studio — compression et légère réverbération'],
+                ['drums', language === 'kr' ? 'Batri' : 'Batterie'],
+                ['guitar', language === 'kr' ? 'Gita' : 'Guitare'],
+                ['keyboard', language === 'kr' ? 'Klavye' : 'Clavier'],
+              ] as const).map(([key, label]) => (
+                <label key={key} className="flex cursor-pointer items-center gap-3 rounded-xl bg-slate-50 px-3 py-2.5 text-sm dark:bg-slate-900">
+                  <input
+                    type="checkbox"
+                    checked={studioOptions[key]}
+                    disabled={isProcessingStudioMix}
+                    onChange={(event) => setStudioOptions(previous => ({ ...previous, [key]: event.target.checked }))}
+                    className="h-4 w-4 accent-amber-500"
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+
+            {studioError && (
+              <p role="alert" className="rounded-xl bg-rose-50 p-3 text-xs text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
+                {studioError}
+              </p>
+            )}
+
+            <p className="text-[11px] text-slate-400">
+              {language === 'kr'
+                ? 'Pou pi bon vitès sou telefòn, anrejistreman estidyo limite a 5 minit.'
+                : 'Pour un traitement fiable sur téléphone, la durée est limitée à 5 minutes.'}
+            </p>
+
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setStudioRecording(null)}
+                disabled={isProcessingStudioMix}
+                className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 disabled:opacity-40 dark:hover:bg-slate-800"
+              >
+                {t.common.cancel}
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateStudioMix}
+                disabled={isProcessingStudioMix || !Object.values(studioOptions).some(Boolean)}
+                className="flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950 transition hover:bg-amber-400 disabled:opacity-50"
+              >
+                <Music2 className="h-4 w-4" />
+                {isProcessingStudioMix
+                  ? language === 'kr' ? 'N ap trete…' : 'Traitement…'
+                  : language === 'kr' ? 'Kreye kopi Studio' : 'Créer la copie studio'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Rename / Note Modal */}
       {editingRecord && (

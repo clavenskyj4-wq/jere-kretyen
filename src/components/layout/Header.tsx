@@ -11,6 +11,7 @@ interface HeaderProps {
   onLanguageChange: (lang: Language) => void;
   theme: 'dark' | 'light';
   onThemeToggle: () => void;
+  onNavigateHome?: () => void;
   onOpenOfflineManager?: () => void;
 }
 
@@ -19,6 +20,7 @@ export const Header: React.FC<HeaderProps> = ({
   onLanguageChange,
   theme,
   onThemeToggle,
+  onNavigateHome,
   onOpenOfflineManager,
 }) => {
   const t = TRANSLATIONS[language];
@@ -27,12 +29,17 @@ export const Header: React.FC<HeaderProps> = ({
   const brandIcon = useBrandIcon();
 
   return (
-    <header className="sticky top-0 z-40 bg-[#12263F] text-white shadow-md border-b border-amber-500/20">
+    <header className="app-header sticky top-0 z-40 text-white shadow-md border-b border-amber-500/20">
       <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
         {/* Brand / Logo */}
-        <div className="flex items-center gap-2.5">
+        <button
+          type="button"
+          onClick={onNavigateHome}
+          className="flex items-center gap-2.5 rounded-lg text-left"
+          aria-label={language === 'kr' ? 'Ale nan Akèy' : 'Aller à l’accueil'}
+        >
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 via-[#C9A227] to-amber-700 p-0.5 shadow-sm flex items-center justify-center overflow-hidden">
-            <div className="w-full h-full bg-[#12263F] rounded-[10px] flex items-center justify-center">
+            <div className="app-header w-full h-full rounded-[10px] flex items-center justify-center">
               {brandIcon ? (
                 <img src={brandIcon} alt="Logo Jere Kretyen" className="w-full h-full object-cover rounded-[10px]" />
               ) : (
@@ -48,7 +55,7 @@ export const Header: React.FC<HeaderProps> = ({
               {t.slogan}
             </p>
           </div>
-        </div>
+        </button>
 
         {/* Actions & Toggles */}
         <div className="flex items-center gap-1.5 sm:gap-2">

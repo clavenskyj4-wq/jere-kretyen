@@ -1,8 +1,21 @@
 import { Bookmark, Language, VerseHighlight, VerseNote } from '../types';
 
+export interface AppPalette {
+  primary: string;
+  accent: string;
+}
+
+export const APP_PALETTES: Record<string, AppPalette> = {
+  classic: { primary: '#12263F', accent: '#C9A227' },
+  ocean: { primary: '#123B50', accent: '#31B7C5' },
+  violet: { primary: '#382653', accent: '#C084FC' },
+  forest: { primary: '#194337', accent: '#8BBF58' },
+};
+
 const STORAGE_KEYS = {
   LANG: 'jere_kretyen_lang',
   THEME: 'jere_kretyen_theme',
+  PALETTE: 'jere_kretyen_palette',
   BOOKMARK: 'jere_kretyen_last_bookmark',
   HIGHLIGHTS: 'jere_kretyen_highlights',
   NOTES: 'jere_kretyen_notes',
@@ -52,6 +65,29 @@ export const storageService = {
     }
   },
 
+  getPalette(): AppPalette {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.PALETTE);
+      if (stored) {
+        const palette = JSON.parse(stored) as AppPalette;
+        if (/^#[0-9a-f]{6}$/i.test(palette.primary) && /^#[0-9a-f]{6}$/i.test(palette.accent)) {
+          return palette;
+        }
+      }
+    } catch {
+      // Use the default palette when stored preferences are invalid.
+    }
+    return APP_PALETTES.classic;
+  },
+
+  setPalette(palette: AppPalette): void {
+    try {
+      localStorage.setItem(STORAGE_KEYS.PALETTE, JSON.stringify(palette));
+    } catch (e) {
+      console.warn('Failed to save color palette', e);
+    }
+  },
+
   // Last Bookmark (Reprendre la lecture)
   getLastBookmark(): Bookmark {
     try {
@@ -60,8 +96,8 @@ export const storageService = {
     } catch {
       // fallback
     }
-    // Default bookmark: Jean 3
-    return { bookId: 'JHN', chapter: 3, verse: 16, timestamp: Date.now() };
+    // Default bookmark: Matthieu 1
+    return { bookId: 'MAT', chapter: 1, verse: 1, timestamp: Date.now() };
   },
 
   setLastBookmark(bookmark: Bookmark): void {
@@ -277,4 +313,3 @@ export const storageService = {
     }
   }
 };
-

@@ -15,7 +15,7 @@ import { MoreView } from './components/more/MoreView';
 import { AdminView } from './components/admin/AdminView';
 import { BibleQuizView } from './components/quiz/BibleQuizView';
 import { HomileticsWorkshopView } from './components/homiletics/HomileticsWorkshopView';
-import { storageService } from './services/storageService';
+import { AppPalette, storageService } from './services/storageService';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
 import { Language, Song } from './types';
 import { WifiOff } from 'lucide-react';
@@ -23,6 +23,7 @@ import { WifiOff } from 'lucide-react';
 export default function App() {
   const [language, setLanguage] = useState<Language>(() => storageService.getLanguage());
   const [theme, setTheme] = useState<'dark' | 'light'>(() => storageService.getTheme());
+  const [palette, setPalette] = useState<AppPalette>(() => storageService.getPalette());
   const [currentTab, setCurrentTab] = useState<TabType>('home');
   const [showAdmin, setShowAdmin] = useState(false);
 
@@ -32,9 +33,8 @@ export default function App() {
     chapter: number;
     verse?: number;
   }>({
-    bookId: 'JHN',
-    chapter: 3,
-    verse: 16,
+    bookId: 'MAT',
+    chapter: 1,
   });
 
   // Song selected for viewing or recording
@@ -44,6 +44,11 @@ export default function App() {
   const isOnline = useOnlineStatus();
 
   // Apply dark mode class to html document
+  useEffect(() => {
+    document.documentElement.style.setProperty('--app-primary', palette.primary);
+    document.documentElement.style.setProperty('--app-accent', palette.accent);
+  }, [palette]);
+
   useEffect(() => {
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
@@ -61,6 +66,11 @@ export default function App() {
     const next = theme === 'dark' ? 'light' : 'dark';
     setTheme(next);
     storageService.setTheme(next);
+  };
+
+  const handlePaletteChange = (nextPalette: AppPalette) => {
+    setPalette(nextPalette);
+    storageService.setPalette(nextPalette);
   };
 
   const handleNavigateToBible = (bookId?: string, chapter?: number, verse?: number) => {
@@ -85,7 +95,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] dark:bg-[#0A1626] text-slate-800 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
+    <div className="app-shell min-h-screen bg-[#F8F9FA] dark:bg-[#0A1626] text-slate-800 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
       {/* Offline Alert Strip if network is disconnected */}
       {!isOnline && (
         <div className="bg-amber-600 text-white text-xs font-semibold py-1.5 px-4 text-center flex items-center justify-center gap-2 shadow-sm z-50">
@@ -104,6 +114,10 @@ export default function App() {
         onLanguageChange={handleLanguageChange}
         theme={theme}
         onThemeToggle={handleThemeToggle}
+        onNavigateHome={() => {
+          setShowAdmin(false);
+          setCurrentTab('home');
+        }}
         onOpenOfflineManager={() => setCurrentTab('more')}
       />
 
@@ -191,6 +205,8 @@ export default function App() {
                 onLanguageChange={handleLanguageChange}
                 theme={theme}
                 onThemeToggle={handleThemeToggle}
+                palette={palette}
+                onPaletteChange={handlePaletteChange}
                 onOpenAdmin={() => setShowAdmin(true)}
                 onBack={() => setCurrentTab('home')}
               />
