@@ -5,8 +5,6 @@ export interface AppPalette {
   accent: string;
 }
 
-export type AppFont = 'lato' | 'poppins';
-
 export const APP_PALETTES: Record<string, AppPalette> = {
   classic: { primary: '#12263F', accent: '#C9A227' },
   ocean: { primary: '#123B50', accent: '#31B7C5' },
@@ -18,7 +16,6 @@ const STORAGE_KEYS = {
   LANG: 'jere_kretyen_lang',
   THEME: 'jere_kretyen_theme',
   PALETTE: 'jere_kretyen_palette',
-  FONT: 'jere_kretyen_font',
   BOOKMARK: 'jere_kretyen_last_bookmark',
   HIGHLIGHTS: 'jere_kretyen_highlights',
   NOTES: 'jere_kretyen_notes',
@@ -88,24 +85,6 @@ export const storageService = {
       localStorage.setItem(STORAGE_KEYS.PALETTE, JSON.stringify(palette));
     } catch (e) {
       console.warn('Failed to save color palette', e);
-    }
-  },
-
-  getFont(): AppFont {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEYS.FONT);
-      if (stored === 'lato' || stored === 'poppins') return stored;
-    } catch {
-      // Use the default font when preferences cannot be read.
-    }
-    return 'lato';
-  },
-
-  setFont(font: AppFont): void {
-    try {
-      localStorage.setItem(STORAGE_KEYS.FONT, font);
-    } catch (e) {
-      console.warn('Failed to save font preference', e);
     }
   },
 

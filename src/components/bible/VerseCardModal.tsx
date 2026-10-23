@@ -101,11 +101,11 @@ export const VerseCardModal: React.FC<VerseCardModalProps> = ({
     const isLight = currentTheme === 'scripture';
     ctx.fillStyle = isLight ? '#C9A227' : '#F2D06B';
     ctx.textAlign = 'center';
-    ctx.font = 'bold 36px "Cinzel", serif';
+    ctx.font = '900 36px "Montserrat", sans-serif';
     ctx.fillText('✝', width / 2, 130);
 
     // 3. Draw App Title
-    ctx.font = '600 26px "Cinzel", serif';
+    ctx.font = '900 26px "Montserrat", sans-serif';
     ctx.letterSpacing = '4px';
     ctx.fillStyle = isLight ? '#78350F' : '#C9A227';
     ctx.fillText('JERE KRETYEN', width / 2, 175);
@@ -134,8 +134,8 @@ export const VerseCardModal: React.FC<VerseCardModalProps> = ({
 
     if (cardMode === 'both' && verseTextKr) {
       // DUAL MODE: Both French and Haitian Creole
-      const frLines = wrapText(`« ${verseText} »`, maxWidth, 'italic 34px "Lora", Georgia, serif');
-      const krLines = wrapText(`« ${verseTextKr} »`, maxWidth, 'italic 32px "Lora", Georgia, serif');
+      const frLines = wrapText(`« ${verseText} »`, maxWidth, 'italic 500 34px "Montserrat", sans-serif');
+      const krLines = wrapText(`« ${verseTextKr} »`, maxWidth, 'italic 500 32px "Montserrat", sans-serif');
 
       const frLineHeight = 48;
       const krLineHeight = 44;
@@ -147,7 +147,7 @@ export const VerseCardModal: React.FC<VerseCardModalProps> = ({
 
       // Draw French text
       ctx.fillStyle = isLight ? '#1E293B' : '#FFFFFF';
-      ctx.font = 'italic 500 34px "Lora", Georgia, serif';
+      ctx.font = 'italic 500 34px "Montserrat", sans-serif';
       frLines.forEach((l) => {
         ctx.fillText(l, width / 2, startY);
         startY += frLineHeight;
@@ -155,7 +155,7 @@ export const VerseCardModal: React.FC<VerseCardModalProps> = ({
 
       // Decorative divider
       startY += 10;
-      ctx.font = 'bold 18px "Plus Jakarta Sans", sans-serif';
+      ctx.font = '700 18px "Montserrat", sans-serif';
       ctx.letterSpacing = '2px';
       ctx.fillStyle = isLight ? '#B45309' : '#FBBF24';
       ctx.fillText('— KREYÒL AYISYEN —', width / 2, startY);
@@ -163,14 +163,14 @@ export const VerseCardModal: React.FC<VerseCardModalProps> = ({
 
       // Draw Haitian Creole text
       ctx.fillStyle = isLight ? '#78350F' : '#FDE68A';
-      ctx.font = 'italic 500 32px "Lora", Georgia, serif';
+      ctx.font = 'italic 500 32px "Montserrat", sans-serif';
       krLines.forEach((l) => {
         ctx.fillText(l, width / 2, startY);
         startY += krLineHeight;
       });
 
       // Reference
-      ctx.font = 'bold 32px "Cinzel", serif';
+      ctx.font = '900 32px "Montserrat", sans-serif';
       ctx.fillStyle = isLight ? '#92400E' : '#F2D06B';
       ctx.letterSpacing = '2px';
       ctx.fillText(`— ${reference} —`, width / 2, startY + 50);
@@ -181,27 +181,27 @@ export const VerseCardModal: React.FC<VerseCardModalProps> = ({
       if (targetText.length > 200) fontSize = 38;
       if (targetText.length > 320) fontSize = 32;
 
-      const lines = wrapText(targetText, maxWidth, `italic ${fontSize}px "Lora", Georgia, serif`);
+      const lines = wrapText(targetText, maxWidth, `italic 500 ${fontSize}px "Montserrat", sans-serif`);
       const lineHeight = fontSize * 1.5;
       const totalHeight = lines.length * lineHeight;
       let startY = height / 2 - totalHeight / 2 + 20;
 
       ctx.fillStyle = isLight ? '#1E293B' : '#FFFFFF';
-      ctx.font = `italic 500 ${fontSize}px "Lora", Georgia, serif`;
+      ctx.font = `italic 500 ${fontSize}px "Montserrat", sans-serif`;
       lines.forEach((l) => {
         ctx.fillText(l, width / 2, startY);
         startY += lineHeight;
       });
 
       // Reference
-      ctx.font = 'bold 34px "Cinzel", serif';
+      ctx.font = '900 34px "Montserrat", sans-serif';
       ctx.fillStyle = isLight ? '#92400E' : '#F2D06B';
       ctx.letterSpacing = '2px';
       ctx.fillText(`— ${reference} —`, width / 2, startY + 55);
     }
 
     // Subtitle / Slogan footer
-    ctx.font = '500 22px "Plus Jakarta Sans", sans-serif';
+    ctx.font = '500 22px "Montserrat", sans-serif';
     ctx.fillStyle = isLight ? '#64748B' : 'rgba(255, 255, 255, 0.6)';
     ctx.letterSpacing = '1px';
     ctx.fillText('Chante epi viv Pawòl la • Louis Segond & Kreyòl', width / 2, height - 85);

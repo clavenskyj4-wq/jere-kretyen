@@ -15,7 +15,7 @@ import { MoreView } from './components/more/MoreView';
 import { AdminView } from './components/admin/AdminView';
 import { BibleQuizView } from './components/quiz/BibleQuizView';
 import { HomileticsWorkshopView } from './components/homiletics/HomileticsWorkshopView';
-import { AppFont, AppPalette, storageService } from './services/storageService';
+import { AppPalette, storageService } from './services/storageService';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
 import { Language, Song } from './types';
 import { WifiOff } from 'lucide-react';
@@ -24,7 +24,6 @@ export default function App() {
   const [language, setLanguage] = useState<Language>(() => storageService.getLanguage());
   const [theme, setTheme] = useState<'dark' | 'light'>(() => storageService.getTheme());
   const [palette, setPalette] = useState<AppPalette>(() => storageService.getPalette());
-  const [appFont, setAppFont] = useState<AppFont>(() => storageService.getFont());
   const [currentTab, setCurrentTab] = useState<TabType>('home');
   const [showAdmin, setShowAdmin] = useState(false);
 
@@ -51,13 +50,6 @@ export default function App() {
   }, [palette]);
 
   useEffect(() => {
-    document.documentElement.style.setProperty(
-      '--app-font-family',
-      appFont === 'poppins' ? '"Poppins", sans-serif' : '"Lato", sans-serif'
-    );
-  }, [appFont]);
-
-  useEffect(() => {
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
@@ -79,11 +71,6 @@ export default function App() {
   const handlePaletteChange = (nextPalette: AppPalette) => {
     setPalette(nextPalette);
     storageService.setPalette(nextPalette);
-  };
-
-  const handleFontChange = (nextFont: AppFont) => {
-    setAppFont(nextFont);
-    storageService.setFont(nextFont);
   };
 
   const handleNavigateToBible = (bookId?: string, chapter?: number, verse?: number) => {
@@ -220,8 +207,6 @@ export default function App() {
                 onThemeToggle={handleThemeToggle}
                 palette={palette}
                 onPaletteChange={handlePaletteChange}
-                appFont={appFont}
-                onFontChange={handleFontChange}
                 onOpenAdmin={() => setShowAdmin(true)}
                 onBack={() => setCurrentTab('home')}
               />

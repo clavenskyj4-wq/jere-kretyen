@@ -1,16 +1,19 @@
 import React, { FormEvent, useEffect, useState } from 'react';
 import { ExternalLink, Headphones, LoaderCircle, Music2, Search } from 'lucide-react';
 import { Language } from '../../types';
+import instrumentalCatalogue from '../../data/instrumentalTracks.json';
 
 interface CommonsTrack {
-  id: number;
+  id: number | string;
   title: string;
+  genre: string;
   audioUrl: string;
   sourceUrl: string;
   artist: string;
+  credit: string;
   license: string;
   licenseUrl: string;
-  description: string;
+  description?: string;
 }
 
 interface CommonsPage {
@@ -77,9 +80,11 @@ async function searchCommonsTracks(query: string, signal: AbortSignal): Promise<
     return [{
       id: page.pageid,
       title: cleanMetadata(metadata.ObjectName?.value) || page.title.replace(/^File:/, ''),
+      genre: description.match(/Genre:\s*([^.]*)/i)?.[1]?.trim() || 'Instrumental',
       audioUrl,
       sourceUrl,
       artist: cleanMetadata(metadata.Artist?.value || metadata.Credit?.value) || 'Auteur indiqué sur Commons',
+      credit: cleanMetadata(metadata.Artist?.value || metadata.Credit?.value),
       license,
       licenseUrl: metadata.LicenseUrl.value,
       description,
@@ -95,14 +100,27 @@ const SEARCH_PRESETS = [
 ];
 
 export const InstrumentalLibrary: React.FC<{ language: Language }> = ({ language }) => {
-  const [searchText, setSearchText] = useState('gospel instrumental');
-  const [query, setQuery] = useState('gospel instrumental');
+  const [searchText, setSearchText] = useState('');
+  const [query, setQuery] = useState('');
   const [tracks, setTracks] = useState<CommonsTrack[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [presetIndex, setPresetIndex] = useState(0);
+  const [searchMode, setSearchMode] = useState<'local' | 'online'>('local');
+  const [currentPage, setCurrentPage] = useState(0);
+  const localTracks: CommonsTrack[] = instrumentalCatalogue;
+  const visibleTracks = searchMode === 'local'
+    ? localTracks.filter((track) =>
+        `${track.title} ${track.artist} ${track.genre}`.toLocaleLowerCase()
+          .includes(searchText.trim().toLocaleLowerCase())
+      )
+    : tracks;
+  const pageSize = 10;
+  const pageCount = Math.ceil(visibleTracks.length / pageSize);
+  const pageTracks = visibleTracks.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
 
   useEffect(() => {
+    if (searchMode !== 'online' || !query) return;
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
       setLoading(true);
@@ -124,12 +142,15 @@ export const InstrumentalLibrary: React.FC<{ language: Language }> = ({ language
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [query]);
+  }, [query, searchMode]);
 
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const nextQuery = searchText.trim();
-    if (nextQuery) setQuery(nextQuery);
+    if (nextQuery) {
+      setCurrentPage(0);
+      if (searchMode === 'online') setQuery(nextQuery);
+    }
   };
 
   return (
@@ -140,25 +161,67 @@ export const InstrumentalLibrary: React.FC<{ language: Language }> = ({ language
         </div>
         <div className="min-w-0 flex-1">
           <h3 className="font-bold text-amber-200">
-            {language === 'kr' ? 'Enstrimantal sou entènèt' : 'Instrumentales en ligne'}
+            {language === 'kr' ? 'Bibliyotèk enstrimantal' : 'Bibliothèque d’instrumentales'}
           </h3>
           <p className="mt-1 text-xs leading-relaxed text-slate-300">
             {language === 'kr'
-              ? 'Chèche mizik sou Wikimedia Commons. Tande mizik yo ak lisans ak kredi yo.'
-              : 'Explorez le catalogue Wikimedia Commons. Chaque piste affiche sa licence et ses crédits.'}
+              ? `${localTracks.length} tit ak enfòmasyon lisans yo disponib san entènèt. Tande mizik la mande koneksyon.`
+              : `${localTracks.length} titres et leurs licences sont consultables hors ligne. La lecture nécessite Internet.`}
           </p>
         </div>
       </div>
 
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setSearchMode('local');
+            setSearchText('');
+            setCurrentPage(0);
+            setError(null);
+          }}
+          aria-pressed={searchMode === 'local'}
+          className={`rounded-xl border px-3 py-2 text-xs font-bold transition ${
+            searchMode === 'local'
+              ? 'border-amber-300 bg-amber-400 text-slate-950'
+              : 'border-white/15 bg-white/5 text-slate-200'
+          }`}
+        >
+          {language === 'kr' ? `Lis lokal (${localTracks.length})` : `Liste locale (${localTracks.length})`}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setSearchMode('online');
+            setCurrentPage(0);
+            if (!query) {
+              setSearchText('gospel instrumental');
+              setQuery('gospel instrumental');
+            }
+          }}
+          aria-pressed={searchMode === 'online'}
+          className={`rounded-xl border px-3 py-2 text-xs font-bold transition ${
+            searchMode === 'online'
+              ? 'border-amber-300 bg-amber-400 text-slate-950'
+              : 'border-white/15 bg-white/5 text-slate-200'
+          }`}
+        >
+          {language === 'kr' ? 'Chèche sou entènèt' : 'Recherche en ligne'}
+        </button>
+      </div>
+
+      {searchMode === 'online' && (
       <div className="flex flex-wrap gap-2">
         {SEARCH_PRESETS.map((preset) => (
           <button
             key={preset.query}
             type="button"
             onClick={() => {
+              setSearchMode('online');
               setSearchText(preset.query);
               setQuery(preset.query);
               setPresetIndex(SEARCH_PRESETS.indexOf(preset));
+              setCurrentPage(0);
             }}
             className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
               query === preset.query
@@ -174,27 +237,33 @@ export const InstrumentalLibrary: React.FC<{ language: Language }> = ({ language
           onClick={() => {
             const nextIndex = (presetIndex + 1) % SEARCH_PRESETS.length;
             const nextPreset = SEARCH_PRESETS[nextIndex];
+            setSearchMode('online');
             setPresetIndex(nextIndex);
             setSearchText(nextPreset.query);
             setQuery(nextPreset.query);
+            setCurrentPage(0);
           }}
           className="rounded-full border border-amber-300/40 px-3 py-1.5 text-xs font-semibold text-amber-200 transition hover:bg-amber-400/10"
         >
           {language === 'kr' ? 'Lòt estil' : 'Autres pistes'}
         </button>
       </div>
+      )}
 
       <form onSubmit={handleSearch} className="flex gap-2">
         <label className="sr-only" htmlFor="instrumental-search">
-          {language === 'kr' ? 'Chèche estil mizik' : 'Rechercher un style musical'}
+          {language === 'kr' ? 'Chèche mizik' : 'Rechercher une musique'}
         </label>
         <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-white/15 bg-slate-950/50 px-3">
           <Search className="h-4 w-4 shrink-0 text-slate-400" />
           <input
             id="instrumental-search"
             value={searchText}
-            onChange={(event) => setSearchText(event.target.value)}
-            placeholder={language === 'kr' ? 'Gospel, pyano, gita…' : 'Gospel, piano, guitare…'}
+            onChange={(event) => {
+              setSearchText(event.target.value);
+              setCurrentPage(0);
+            }}
+            placeholder={language === 'kr' ? 'Tit, atis, stil…' : 'Titre, artiste, style…'}
             className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-white outline-none placeholder:text-slate-500"
           />
         </div>
@@ -202,22 +271,32 @@ export const InstrumentalLibrary: React.FC<{ language: Language }> = ({ language
           type="submit"
           className="rounded-xl bg-amber-400 px-4 text-sm font-bold text-slate-950 transition hover:bg-amber-300"
         >
-          {language === 'kr' ? 'Chèche' : 'Chercher'}
+          {searchMode === 'local'
+            ? language === 'kr' ? 'Filtre' : 'Filtrer'
+            : language === 'kr' ? 'Chèche' : 'Chercher'}
         </button>
       </form>
 
-      {loading && (
+      {searchMode === 'local' && (
+        <p className="text-xs text-slate-300">
+          {language === 'kr'
+            ? `${visibleTracks.length} tit nan lis la.`
+            : `${visibleTracks.length} titre${visibleTracks.length > 1 ? 's' : ''} dans la liste.`}
+        </p>
+      )}
+
+      {searchMode === 'online' && loading && (
         <p className="flex items-center gap-2 text-sm text-slate-300" role="status">
           <LoaderCircle className="h-4 w-4 animate-spin" />
           {language === 'kr' ? 'Ap chèche mizik…' : 'Recherche de pistes…'}
         </p>
       )}
-      {error && (
+      {searchMode === 'online' && error && (
         <p className="rounded-xl border border-rose-400/30 bg-rose-950/40 p-3 text-sm text-rose-200" role="alert">
           {error}
         </p>
       )}
-      {!loading && !error && tracks.length === 0 && (
+      {searchMode === 'online' && !loading && !error && tracks.length === 0 && (
         <p className="rounded-xl bg-white/5 p-3 text-sm text-slate-300">
           {language === 'kr'
             ? 'Pa gen mizik ki gen lisans klè nan rechèch sa a. Eseye yon lòt mo.'
@@ -225,15 +304,20 @@ export const InstrumentalLibrary: React.FC<{ language: Language }> = ({ language
         </p>
       )}
 
-      {!loading && tracks.length > 0 && (
+      {((searchMode === 'local' && pageTracks.length > 0) ||
+        (searchMode === 'online' && !loading && tracks.length > 0)) && (
         <div className="space-y-3">
-          {tracks.slice(0, 8).map((track) => (
+          {pageTracks.map((track, index) => (
             <article key={track.id} className="rounded-2xl border border-white/10 bg-white/5 p-3.5">
               <div className="mb-2 flex items-start gap-2">
                 <Music2 className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
                 <div className="min-w-0 flex-1">
-                  <h4 className="break-words text-sm font-bold text-white">{track.title}</h4>
-                  <p className="mt-0.5 break-words text-xs text-slate-300">{track.artist}</p>
+                  <h4 className="break-words text-sm font-bold text-white">
+                    {searchMode === 'local' ? `${currentPage * pageSize + index + 1}. ` : ''}{track.title}
+                  </h4>
+                  <p className="mt-0.5 break-words text-xs text-slate-300">
+                    {track.artist}{track.genre ? ` · ${track.genre}` : ''}
+                  </p>
                 </div>
                 <a
                   href={track.sourceUrl}
@@ -251,22 +335,52 @@ export const InstrumentalLibrary: React.FC<{ language: Language }> = ({ language
                   : 'Votre navigateur ne prend pas en charge la lecture audio.'}
               </audio>
               <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
-                {track.description && <>{track.description} · </>}
                 {language === 'kr' ? 'Lisans' : 'Licence'}:{' '}
                 <a href={track.licenseUrl} target="_blank" rel="noreferrer" className="underline decoration-amber-400/60 underline-offset-2 hover:text-amber-200">
                   {track.license}
                 </a>
-                {' · '}
-                {language === 'kr' ? 'Kredi' : 'Crédit'}: {track.artist}
+                {track.credit && track.credit !== track.artist && (
+                  <> · {language === 'kr' ? 'Kredi' : 'Crédit'}: {track.credit}</>
+                )}
               </p>
             </article>
           ))}
         </div>
       )}
+      {searchMode === 'local' && visibleTracks.length === 0 && (
+        <p className="rounded-xl bg-white/5 p-3 text-sm text-slate-300">
+          {language === 'kr' ? 'Pa gen mizik ki koresponn ak rechèch sa a.' : 'Aucune piste ne correspond à votre recherche.'}
+        </p>
+      )}
+      {searchMode === 'local' && pageCount > 1 && (
+        <div className="flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => setCurrentPage((page) => Math.max(0, page - 1))}
+            disabled={currentPage === 0}
+            className="rounded-lg border border-white/15 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40"
+          >
+            {language === 'kr' ? 'Anvan' : 'Précédent'}
+          </button>
+          <span className="text-xs text-slate-300">
+            {language === 'kr'
+              ? `Paj ${currentPage + 1} sou ${pageCount}`
+              : `Page ${currentPage + 1} sur ${pageCount}`}
+          </span>
+          <button
+            type="button"
+            onClick={() => setCurrentPage((page) => Math.min(pageCount - 1, page + 1))}
+            disabled={currentPage >= pageCount - 1}
+            className="rounded-lg border border-white/15 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40"
+          >
+            {language === 'kr' ? 'Apre' : 'Suivant'}
+          </button>
+        </div>
+      )}
       <p className="text-[11px] leading-relaxed text-slate-400">
         {language === 'kr'
-          ? 'Katalòg la bezwen entènèt. Pistes yo rete sou Commons; aplikasyon an pa telechaje ni repibliye fichye yo.'
-          : 'Connexion Internet requise. Les fichiers restent hébergés sur Commons; l’application ne les redistribue pas.'}
+          ? 'Lis tit la nan aplikasyon an pou li konsilte san entènèt. Fichye odyo yo rete sou Commons; lekti a bezwen koneksyon. Verifye sous la ak kondisyon lisans lan anvan nenpòt itilizasyon.'
+          : 'La liste des titres est intégrée à l’application et consultable hors ligne. Les fichiers audio restent hébergés sur Commons; leur lecture nécessite Internet. Consultez la source et les conditions de licence avant toute réutilisation.'}
       </p>
     </section>
   );
