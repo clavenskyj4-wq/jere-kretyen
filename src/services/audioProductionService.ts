@@ -1,5 +1,12 @@
+export type StudioVoiceTone = 'natural' | 'warm' | 'bright' | 'telephone';
+
 export interface StudioMixOptions {
   studioVoice: boolean;
+  voiceTone: StudioVoiceTone;
+  reverb: number;
+  echo: number;
+  tempo: number;
+  accompanimentVolume: number;
   drums: boolean;
   guitar: boolean;
   keyboard: boolean;
@@ -45,7 +52,8 @@ function scheduleDrum(
   context: OfflineAudioContext,
   destination: AudioNode,
   startTime: number,
-  kind: 'kick' | 'snare' | 'hat'
+  kind: 'kick' | 'snare' | 'hat',
+  volume: number
 ): void {
   const duration = kind === 'kick' ? 0.24 : kind === 'snare' ? 0.16 : 0.06;
   const oscillator = context.createOscillator();
@@ -53,7 +61,7 @@ function scheduleDrum(
   oscillator.type = kind === 'kick' ? 'sine' : 'triangle';
   oscillator.frequency.setValueAtTime(kind === 'kick' ? 130 : kind === 'snare' ? 190 : 8000, startTime);
   if (kind === 'kick') oscillator.frequency.exponentialRampToValueAtTime(42, startTime + duration);
-  gain.gain.setValueAtTime(kind === 'hat' ? 0.04 : 0.14, startTime);
+  gain.gain.setValueAtTime((kind === 'hat' ? 0.04 : 0.14) * volume, startTime);
   gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
   oscillator.connect(gain);
   gain.connect(destination);
@@ -67,7 +75,8 @@ function addInstruments(
   duration: number,
   options: StudioMixOptions
 ): void {
-  const beat = 60 / 86;
+  const beat = 60 / options.tempo;
+  const volume = options.accompanimentVolume;
   const chords = [
     [261.63, 329.63, 392],
     [196, 246.94, 293.66],
@@ -81,17 +90,17 @@ function addInstruments(
     const chord = chords[Math.floor(index / 4) % chords.length];
 
     if (options.keyboard && index % 4 === 0) {
-      chord.forEach((note) => scheduleTone(context, destination, note, time, beat * 3.5, 'triangle', 0.045));
+      chord.forEach((note) => scheduleTone(context, destination, note, time, beat * 3.5, 'triangle', 0.09 * volume));
     }
 
     if (options.guitar && index % 2 === 0) {
-      chord.forEach((note) => scheduleTone(context, destination, note * 2, time, 0.32, 'sawtooth', 0.016));
+      chord.forEach((note) => scheduleTone(context, destination, note * 2, time, 0.32, 'sawtooth', 0.032 * volume));
     }
 
     if (options.drums) {
-      scheduleDrum(context, destination, time, index % 4 === 0 || index % 4 === 2 ? 'kick' : 'hat');
+      scheduleDrum(context, destination, time, index % 4 === 0 || index % 4 === 2 ? 'kick' : 'hat', volume);
       if (index % 4 === 1 || index % 4 === 3) {
-        scheduleDrum(context, destination, time, 'snare');
+        scheduleDrum(context, destination, time, 'snare', volume);
       }
     }
   }
@@ -149,35 +158,68 @@ export async function createStudioMix(
     }
 
     const sampleRate = Math.min(decoded.sampleRate, 32000);
-    const outputFrames = Math.ceil((decoded.duration + 0.8) * sampleRate);
+    const outputFrames = Math.ceil((decoded.duration + 2.5) * sampleRate);
     const context = new OfflineAudioContext(2, outputFrames, sampleRate);
     const source = context.createBufferSource();
     source.buffer = decoded;
 
     const highPass = context.createBiquadFilter();
     highPass.type = 'highpass';
-    highPass.frequency.value = 75;
+    highPass.frequency.value = options.voiceTone === 'telephone' ? 320 : 75;
 
     const compressor = context.createDynamicsCompressor();
     compressor.threshold.value = -20;
     compressor.knee.value = 18;
-    compressor.ratio.value = options.studioVoice ? 3.2 : 1.3;
+    compressor.ratio.value = options.studioVoice ? 4 : 1.3;
     compressor.attack.value = 0.008;
     compressor.release.value = 0.22;
 
-    const master = context.createGain();
-    master.gain.value = options.drums || options.guitar || options.keyboard ? 0.72 : 0.95;
-    highPass.connect(compressor);
-    compressor.connect(master);
+    const lowShelf = context.createBiquadFilter();
+    lowShelf.type = 'lowshelf';
+    lowShelf.frequency.value = 180;
+    lowShelf.gain.value = options.voiceTone === 'warm' ? 4 : options.voiceTone === 'bright' ? -2 : 0;
 
-    if (options.studioVoice) {
+    const presence = context.createBiquadFilter();
+    presence.type = 'peaking';
+    presence.frequency.value = 2800;
+    presence.Q.value = 0.8;
+    presence.gain.value = options.voiceTone === 'bright' ? 4 : options.voiceTone === 'warm' ? -1.5 : 0;
+
+    const highShelf = context.createBiquadFilter();
+    highShelf.type = 'highshelf';
+    highShelf.frequency.value = options.voiceTone === 'telephone' ? 3400 : 7000;
+    highShelf.gain.value = options.voiceTone === 'telephone' ? -18 : options.voiceTone === 'bright' ? 2 : 0;
+
+    const master = context.createGain();
+    master.gain.value = options.drums || options.guitar || options.keyboard ? 0.88 : 0.95;
+    highPass.connect(compressor);
+    compressor.connect(lowShelf);
+    lowShelf.connect(presence);
+    presence.connect(highShelf);
+    highShelf.connect(master);
+
+    if (options.reverb > 0) {
       const reverb = context.createConvolver();
       const wet = context.createGain();
       reverb.buffer = createNoiseBuffer(context, 1.1);
-      wet.gain.value = 0.18;
-      compressor.connect(reverb);
+      wet.gain.value = Math.min(options.reverb, 0.6);
+      highShelf.connect(reverb);
       reverb.connect(wet);
       wet.connect(master);
+    }
+
+    if (options.echo > 0) {
+      const delay = context.createDelay(0.7);
+      const echo = context.createGain();
+      const feedback = context.createGain();
+      delay.delayTime.value = 0.28;
+      echo.gain.value = Math.min(options.echo, 0.5);
+      feedback.gain.value = Math.min(options.echo * 0.45, 0.22);
+      highShelf.connect(delay);
+      delay.connect(echo);
+      echo.connect(master);
+      delay.connect(feedback);
+      feedback.connect(delay);
     }
 
     if (options.drums || options.guitar || options.keyboard) {

@@ -28,8 +28,7 @@ import {
 import { Language, Song } from '../../types';
 import { TRANSLATIONS } from '../../i18n/translations';
 import { recordingStorageService, StoredAudioRecording } from '../../services/recordingStorageService';
-import { createStudioMix, StudioMixOptions } from '../../services/audioProductionService';
-import { InstrumentalLibrary } from './InstrumentalLibrary';
+import { createStudioMix, StudioMixOptions, StudioVoiceTone } from '../../services/audioProductionService';
 
 interface RecordingsViewProps {
   language: Language;
@@ -86,6 +85,11 @@ export const RecordingsView: React.FC<RecordingsViewProps> = ({
   const [studioRecording, setStudioRecording] = useState<StoredAudioRecording | null>(null);
   const [studioOptions, setStudioOptions] = useState<StudioMixOptions>({
     studioVoice: true,
+    voiceTone: 'natural',
+    reverb: 0.18,
+    echo: 0,
+    tempo: 86,
+    accompanimentVolume: 0.55,
     drums: false,
     guitar: false,
     keyboard: true,
@@ -520,8 +524,6 @@ export const RecordingsView: React.FC<RecordingsViewProps> = ({
         </div>
       </div>
 
-      <InstrumentalLibrary language={language} />
-
       {/* Permission Error Banner */}
       {permissionError && (
         <div className="p-4 rounded-2xl bg-rose-950/90 border border-rose-500 text-white text-xs flex items-start gap-3">
@@ -891,7 +893,7 @@ export const RecordingsView: React.FC<RecordingsViewProps> = ({
             role="dialog"
             aria-modal="true"
             aria-labelledby="studio-mix-title"
-            className="w-full max-w-md rounded-3xl border border-amber-500/30 bg-white p-5 text-slate-900 shadow-2xl dark:bg-[#0D1C30] dark:text-white space-y-4"
+            className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-3xl border border-amber-500/30 bg-white p-5 text-slate-900 shadow-2xl dark:bg-[#0D1C30] dark:text-white space-y-4"
           >
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -920,13 +922,77 @@ export const RecordingsView: React.FC<RecordingsViewProps> = ({
 
             <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
               {language === 'kr'
-                ? 'Chwazi yon efè vwa ak enstriman pou kreye yon nouvo kopi. Sa yo se son sentetize pou yon akonpayman senp.'
-                : 'Choisissez un effet vocal et des instruments pour créer une nouvelle copie. Les instruments sont synthétisés et fournissent un accompagnement simple.'}
+                ? 'Anrejistreman orijinal la rete san chanjman. Ajoute konpresyon, koulè vwa, reverberasyon, eko ak yon akonpayman sentetize nan yon nouvo kopi.'
+                : 'L’enregistrement original reste intact. Ajoutez compression, couleur vocale, réverbération, écho et accompagnement synthétisé à une nouvelle copie.'}
             </p>
+
+            <div className="space-y-3 rounded-2xl border border-slate-200 p-3 dark:border-slate-700">
+              <label className="block space-y-1.5">
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                  {language === 'kr' ? 'Koulè vwa' : 'Couleur de voix'}
+                </span>
+                <select
+                  value={studioOptions.voiceTone}
+                  disabled={isProcessingStudioMix}
+                  onChange={(event) => {
+                    const tone = event.target.value;
+                    if (tone === 'natural' || tone === 'warm' || tone === 'bright' || tone === 'telephone') {
+                      const voiceTone: StudioVoiceTone = tone;
+                      setStudioOptions(previous => ({ ...previous, voiceTone }));
+                    }
+                  }}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                >
+                  <option value="natural">{language === 'kr' ? 'Natirèl' : 'Naturelle'}</option>
+                  <option value="warm">{language === 'kr' ? 'Cho' : 'Chaleureuse'}</option>
+                  <option value="bright">{language === 'kr' ? 'Klè' : 'Claire'}</option>
+                  <option value="telephone">{language === 'kr' ? 'Efè telefòn' : 'Effet téléphone'}</option>
+                </select>
+              </label>
+
+              {([
+                {
+                  key: 'reverb',
+                  label: language === 'kr' ? 'Reverberasyon' : 'Réverbération',
+                  hint: language === 'kr' ? 'Sans chanm rive nan gwo legliz' : 'De la petite pièce à la grande église',
+                  max: 0.5,
+                  step: 0.01,
+                },
+                {
+                  key: 'echo',
+                  label: language === 'kr' ? 'Eko' : 'Écho',
+                  hint: language === 'kr' ? 'Ajoute repetisyon nan vwa a' : 'Ajoute des répétitions à la voix',
+                  max: 0.4,
+                  step: 0.01,
+                },
+              ] as const).map(({ key, label, hint, max, step }) => (
+                <label key={key} className="block space-y-1.5">
+                  <span className="flex items-center justify-between gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                    <span>{label}</span>
+                    <span className="font-mono text-slate-500">{Math.round(studioOptions[key] / max * 100)}%</span>
+                  </span>
+                  <input
+                    type="range"
+                    min="0"
+                    max={max}
+                    step={step}
+                    value={studioOptions[key]}
+                    disabled={isProcessingStudioMix}
+                    onChange={(event) => setStudioOptions(previous => ({
+                      ...previous,
+                      [key]: Number(event.target.value),
+                    }))}
+                    aria-label={label}
+                    className="w-full accent-amber-500"
+                  />
+                  <span className="block text-[11px] text-slate-500 dark:text-slate-400">{hint}</span>
+                </label>
+              ))}
+            </div>
 
             <div className="space-y-2">
               {([
-                ['studioVoice', language === 'kr' ? 'Vwa estidyo — konpresyon ak ti reverberasyon' : 'Voix studio — compression et légère réverbération'],
+                ['studioVoice', language === 'kr' ? 'Konpresyon vokal — egalize volim lan' : 'Compression vocale — égalise le volume'],
                 ['drums', language === 'kr' ? 'Batri' : 'Batterie'],
                 ['guitar', language === 'kr' ? 'Gita' : 'Guitare'],
                 ['keyboard', language === 'kr' ? 'Klavye' : 'Clavier'],
@@ -943,6 +1009,51 @@ export const RecordingsView: React.FC<RecordingsViewProps> = ({
                 </label>
               ))}
             </div>
+
+            {(studioOptions.drums || studioOptions.guitar || studioOptions.keyboard) && (
+              <div className="space-y-3 rounded-2xl border border-slate-200 p-3 dark:border-slate-700">
+                <label className="block space-y-1.5">
+                  <span className="flex items-center justify-between gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                    <span>{language === 'kr' ? 'Vitès rit la' : 'Tempo de l’accompagnement'}</span>
+                    <span className="font-mono text-slate-500">{studioOptions.tempo} BPM</span>
+                  </span>
+                  <input
+                    type="range"
+                    min="60"
+                    max="130"
+                    step="1"
+                    value={studioOptions.tempo}
+                    disabled={isProcessingStudioMix}
+                    onChange={(event) => setStudioOptions(previous => ({
+                      ...previous,
+                      tempo: Number(event.target.value),
+                    }))}
+                    className="w-full accent-amber-500"
+                    aria-label={language === 'kr' ? 'Vitès rit la' : 'Tempo de l’accompagnement'}
+                  />
+                </label>
+                <label className="block space-y-1.5">
+                  <span className="flex items-center justify-between gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                    <span>{language === 'kr' ? 'Volim enstriman' : 'Volume des instruments'}</span>
+                    <span className="font-mono text-slate-500">{Math.round(studioOptions.accompanimentVolume * 100)}%</span>
+                  </span>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="1"
+                    step="0.05"
+                    value={studioOptions.accompanimentVolume}
+                    disabled={isProcessingStudioMix}
+                    onChange={(event) => setStudioOptions(previous => ({
+                      ...previous,
+                      accompanimentVolume: Number(event.target.value),
+                    }))}
+                    className="w-full accent-amber-500"
+                    aria-label={language === 'kr' ? 'Volim enstriman' : 'Volume des instruments'}
+                  />
+                </label>
+              </div>
+            )}
 
             {studioError && (
               <p role="alert" className="rounded-xl bg-rose-50 p-3 text-xs text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
