@@ -145,6 +145,13 @@ export const RecordingsView: React.FC<RecordingsViewProps> = ({
     setPermissionError(null);
     audioChunksRef.current = [];
 
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setPermissionError(language === 'kr'
+        ? 'Mikwo a pa disponib nan navigatè sa a. Mete aplikasyon an ajou epi eseye ankò.'
+        : 'Le microphone n’est pas accessible dans cette version. Mettez l’application à jour et réessayez.');
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
@@ -250,12 +257,26 @@ export const RecordingsView: React.FC<RecordingsViewProps> = ({
           return prev + 1;
         });
       }, 1000);
-    } catch (err: any) {
-      setPermissionError(
-        language === 'kr'
-          ? 'Navigatè a pa gen otorizasyon pou mikwo a. Tanpri pèmèt li nan reglaj telefòn ou.'
-          : 'Accès au microphone requis. Veuillez autoriser le micro dans les paramètres du navigateur pour chanter et vous enregistrer.'
-      );
+    } catch (error: unknown) {
+      const errorName = error instanceof Error ? error.name : '';
+      if (errorName === 'NotFoundError' || errorName === 'DevicesNotFoundError') {
+        setPermissionError(language === 'kr'
+          ? 'Pa jwenn mikwo sou aparèy sa a.'
+          : 'Aucun microphone n’a été détecté sur cet appareil.');
+      } else if (errorName === 'NotReadableError' || errorName === 'TrackStartError') {
+        setPermissionError(language === 'kr'
+          ? 'Yon lòt aplikasyon ap itilize mikwo a. Fèmen aplikasyon sa a epi eseye ankò.'
+          : 'Le microphone est utilisé par une autre application. Fermez-la puis réessayez.');
+      } else if (errorName === 'NotAllowedError' || errorName === 'SecurityError') {
+        setPermissionError(language === 'kr'
+          ? 'Pèmèt mikwo a nan fenèt pèmisyon Android la. Si ou te refize pèmisyon an deja, reaktive li nan Paramèt Android → Aplikasyon → Jere Kretyen → Pèmisyon.'
+          : 'Autorisez le microphone dans la fenêtre Android qui s’affiche. Si l’autorisation a déjà été refusée, réactivez-la dans Paramètres Android → Applications → Jere Kretyen → Autorisations.');
+      } else {
+        console.error('Could not start microphone recording.', error);
+        setPermissionError(language === 'kr'
+          ? 'Pa t kapab kòmanse mikwo a. Verifye pèmisyon ak fòma odyo a epi eseye ankò.'
+          : 'Impossible de démarrer le microphone. Vérifiez son autorisation et réessayez.');
+      }
     }
   };
 

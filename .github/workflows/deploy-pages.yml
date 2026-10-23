@@ -21,6 +21,13 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set app build metadata
+        run: |
+          echo "VITE_APP_BUILD_ID=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "VITE_APP_BUILD_NUMBER=$(git rev-list --count HEAD)" >> "$GITHUB_ENV"
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
@@ -40,6 +47,19 @@ jobs:
           GITHUB_PAGES: 'true'
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Publish app version metadata
+        run: |
+          node --input-type=module -e '
+            import { writeFileSync } from "node:fs";
+            import { execFileSync } from "node:child_process";
+            const metadata = {
+              buildId: process.env.VITE_APP_BUILD_ID,
+              buildNumber: Number(process.env.VITE_APP_BUILD_NUMBER),
+              releaseNotes: execFileSync("git", ["log", "-1", "--format=%s"], { encoding: "utf8" }).trim()
+            };
+            writeFileSync("dist/app-version.json", JSON.stringify(metadata));
+          '
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

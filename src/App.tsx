@@ -18,7 +18,9 @@ import { HomileticsWorkshopView } from './components/homiletics/HomileticsWorksh
 import { AppPalette, storageService } from './services/storageService';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
 import { Language, Song } from './types';
-import { WifiOff } from 'lucide-react';
+import { Download, WifiOff, X } from 'lucide-react';
+import { ANDROID_BUILD_WORKFLOW_URL, AppUpdateInfo, checkForAppUpdate } from './services/appUpdateService';
+import { Capacitor } from '@capacitor/core';
 
 export default function App() {
   const [language, setLanguage] = useState<Language>(() => storageService.getLanguage());
@@ -26,6 +28,7 @@ export default function App() {
   const [palette, setPalette] = useState<AppPalette>(() => storageService.getPalette());
   const [currentTab, setCurrentTab] = useState<TabType>('home');
   const [showAdmin, setShowAdmin] = useState(false);
+  const [appUpdate, setAppUpdate] = useState<AppUpdateInfo | null>(null);
 
   // Navigation targets for Bible
   const [bibleTarget, setBibleTarget] = useState<{
@@ -42,6 +45,19 @@ export default function App() {
   const [songForRecording, setSongForRecording] = useState<Song | null>(null);
 
   const isOnline = useOnlineStatus();
+
+  useEffect(() => {
+    if (Capacitor.getPlatform() !== 'android') return;
+    const controller = new AbortController();
+    void checkForAppUpdate(controller.signal)
+      .then(setAppUpdate)
+      .catch(error => {
+        if (!controller.signal.aborted) {
+          console.warn('Impossible de vérifier les mises à jour de l’application.', error);
+        }
+      });
+    return () => controller.abort();
+  }, []);
 
   // Apply dark mode class to html document
   useEffect(() => {
@@ -221,6 +237,69 @@ export default function App() {
         onTabChange={setCurrentTab}
         language={language}
       />
+
+      {appUpdate && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="app-update-title"
+            className="w-full max-w-md space-y-4 rounded-3xl border border-amber-500/40 bg-white p-5 text-slate-900 shadow-2xl dark:bg-[#0D1C30] dark:text-white"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">
+                  {language === 'kr' ? 'Nouvo vèsyon' : 'Nouvelle version'}
+                </p>
+                <h2 id="app-update-title" className="mt-1 text-xl font-black">
+                  {language === 'kr' ? 'Mizajou aplikasyon an disponib' : 'Mise à jour de l’application disponible'}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAppUpdate(null)}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white"
+                aria-label={language === 'kr' ? 'Fèmen' : 'Fermer'}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+              {language === 'kr'
+                ? 'Gen nouvo amelyorasyon pou aplikasyon an. Telechaje epi enstale nouvo APK a pou jwenn dènye vèsyon an.'
+                : 'Des changements sont disponibles. Téléchargez et installez le nouvel APK pour utiliser la dernière version.'}
+            </p>
+            {appUpdate.releaseNotes && (
+              <p className="rounded-xl bg-slate-100 p-3 text-xs text-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                {language === 'kr' ? 'Chanjman:' : 'Changements :'} {appUpdate.releaseNotes}
+              </p>
+            )}
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              {language === 'kr'
+                ? 'Aplikasyon an pa enstale mizajou a otomatikman. Android ka mande retire ansyen APK tès la; sove anrejistreman ak fichye lokal ou yo anvan.'
+                : 'L’application ne peut pas installer l’APK automatiquement. Android peut demander de désinstaller l’ancienne version de test; sauvegardez vos enregistrements et fichiers locaux avant.'
+              }
+            </p>
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setAppUpdate(null)}
+                className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                {language === 'kr' ? 'Pita' : 'Plus tard'}
+              </button>
+              <a
+                href={ANDROID_BUILD_WORKFLOW_URL}
+                className="flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950 transition hover:bg-amber-400"
+              >
+                <Download className="h-4 w-4" />
+                {language === 'kr' ? 'Jwenn APK la' : 'Obtenir le nouvel APK'}
+              </a>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

@@ -19,6 +19,13 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set app build metadata
+        run: |
+          echo "VITE_APP_BUILD_ID=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "VITE_APP_BUILD_NUMBER=$(git rev-list --count HEAD)" >> "$GITHUB_ENV"
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
@@ -57,7 +64,7 @@ jobs:
 
       - name: Build APK
         working-directory: android
-        run: chmod +x gradlew && ./gradlew assembleDebug
+        run: chmod +x gradlew && ./gradlew assembleDebug -PappVersionCode=${{ github.run_number }} -PappVersionName=1.0.${{ github.run_number }}
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
