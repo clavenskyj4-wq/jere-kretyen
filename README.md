@@ -42,7 +42,18 @@ Une fois publiée en HTTPS :
 - **Android** : ouvrez le site dans Chrome et choisissez « Installer l’application » ou « Ajouter à l’écran d’accueil ».
 - **iPhone et iPad** : ouvrez le site dans Safari, touchez « Partager », puis « Sur l’écran d’accueil ».
 
-La Bible créole est mise en cache après son premier chargement réussi afin qu’elle soit disponible hors ligne. Les fichiers `.apk` et `.exe` ne sont pas produits par ce workflow : ils nécessitent des emballages natifs séparés. Un APK est destiné à Android et un installateur `.exe` à Windows; aucun des deux ne s’installe sur iOS.
+La Bible créole est mise en cache après son premier chargement réussi afin qu’elle soit disponible hors ligne. Un APK Android peut être généré par le workflow **Build Android APK**. Un installateur `.exe` nécessite un emballage Windows séparé; aucun APK ne s’installe sur iOS.
+
+### Générer et télécharger l’APK Android
+
+Le projet Android utilise Capacitor et embarque une compilation de l’application dans l’APK. Les contenus partagés et l’authentification continuent d’utiliser Supabase.
+
+1. Après chaque envoi sur `main`, ou en lançant **Actions → Build Android APK → Run workflow**, GitHub compile l’application Android.
+2. Ouvrez le workflow **Build Android APK**, puis la dernière exécution réussie.
+3. Sous **Artifacts**, téléchargez `jere-kretyen-android-apk` et décompressez l’archive ZIP.
+4. Transférez `app-debug.apk` sur un appareil Android, ouvrez-le et autorisez l’installation depuis cette source si Android le demande.
+
+Cet APK de test est signé avec la clé Android debug de GitHub Actions; une nouvelle compilation peut donc nécessiter de désinstaller l’ancienne version avant installation. Ne distribuez pas cet APK comme version officielle Google Play. Une publication durable nécessitera une clé de signature privée conservée dans les secrets GitHub et un processus de release dédié. L’application Android et la PWA partagent le même code, mais les changements du code doivent être compilés à nouveau pour produire un nouvel APK. Pour l’instant, le logo du lanceur Android est l’icône fournie avec le projet; un logo remplacé dans l’administration modifie l’interface web, pas l’icône système de l’APK déjà construit.
 
 ### Configuration de l’administration partagée (Supabase)
 
