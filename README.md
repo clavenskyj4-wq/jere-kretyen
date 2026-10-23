@@ -48,12 +48,17 @@ La Bible créole est mise en cache après son premier chargement réussi afin qu
 
 Le projet Android utilise Capacitor et embarque une compilation de l’application dans l’APK. Les contenus partagés et l’authentification continuent d’utiliser Supabase.
 
-1. Après chaque envoi sur `main`, ou en lançant **Actions → Build Android APK → Run workflow**, GitHub compile l’application Android.
-2. Ouvrez le workflow **Build Android APK**, puis la dernière exécution réussie.
-3. Sous **Artifacts**, téléchargez `jere-kretyen-android-apk` et décompressez l’archive ZIP.
-4. Transférez `app-debug.apk` sur un appareil Android, ouvrez-le et autorisez l’installation depuis cette source si Android le demande.
+1. Ouvrez la [dernière compilation APK réussie](https://github.com/clavenskyj4-wq/jere-kretyen/actions/runs/39980880279) et connectez-vous à GitHub si nécessaire.
+2. Dans la section **Artifacts**, cliquez sur `jere-kretyen-android-apk`. Le téléchargement est un fichier ZIP.
+3. Décompressez le ZIP et récupérez `app-debug.apk`. Vous pouvez transférer ce fichier sur le téléphone (USB, courriel ou stockage en nuage).
+4. Sur Android, ouvrez le fichier depuis **Fichiers** ou **Téléchargements**. Si Android bloque l’installation, ouvrez le réglage proposé et autorisez temporairement **l’installation d’applications inconnues** pour l’application utilisée (par exemple Chrome ou Fichiers), puis revenez au fichier et installez-le.
+5. Une fois l’installation terminée, vous pouvez désactiver cette autorisation. Lancez ensuite **Jere Kretyen** depuis l’écran d’accueil ou la liste des applications.
+
+Pour obtenir une version plus récente, attendez une compilation réussie après l’envoi des changements sur `main`, ou ouvrez **Actions → Build Android APK → Run workflow**. Téléchargez l’artefact de cette nouvelle exécution. GitHub conserve chaque artefact pendant 30 jours; après expiration, relancez le workflow pour en générer un autre.
 
 Cet APK de test est signé avec la clé Android debug de GitHub Actions; une nouvelle compilation peut donc nécessiter de désinstaller l’ancienne version avant installation. Ne distribuez pas cet APK comme version officielle Google Play. Une publication durable nécessitera une clé de signature privée conservée dans les secrets GitHub et un processus de release dédié. L’application Android et la PWA partagent le même code, mais les changements du code doivent être compilés à nouveau pour produire un nouvel APK. Pour l’instant, le logo du lanceur Android est l’icône fournie avec le projet; un logo remplacé dans l’administration modifie l’interface web, pas l’icône système de l’APK déjà construit.
+
+Cet APK ne s’installe pas sur iPhone ou iPad. Sur ces appareils, utilisez la version web dans Safari et choisissez **Partager → Sur l’écran d’accueil**. Aucun installateur Windows `.exe` n’est généré par ce workflow.
 
 ### Configuration de l’administration partagée (Supabase)
 
