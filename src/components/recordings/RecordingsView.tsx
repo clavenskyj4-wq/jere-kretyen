@@ -37,6 +37,17 @@ interface RecordingsViewProps {
   onBack?: () => void;
 }
 
+const YOUTUBE_INSTRUMENTALS = [
+  {
+    id: 'ixubXx_RrzM',
+    title: 'Instrumental Praise and Worship Guitar',
+  },
+  {
+    id: 'uGt8FAv4Df8',
+    title: "Instrumental chants d'esperance",
+  },
+];
+
 export const RecordingsView: React.FC<RecordingsViewProps> = ({
   language,
   songForRecording,
@@ -51,6 +62,7 @@ export const RecordingsView: React.FC<RecordingsViewProps> = ({
   const [recordDuration, setRecordDuration] = useState(0);
   const [micVolume, setMicVolume] = useState(0);
   const [permissionError, setPermissionError] = useState<string | null>(null);
+  const [selectedInstrumentalId, setSelectedInstrumentalId] = useState<string | null>(null);
 
   // Audio elements & MediaRecorder
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -612,6 +624,52 @@ export const RecordingsView: React.FC<RecordingsViewProps> = ({
             )}
           </div>
         )}
+
+        {/* YouTube instrumentals play alongside microphone recording. */}
+        <div className="mb-4 rounded-2xl border border-amber-500/25 bg-slate-950/60 p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <Music2 className="h-4 w-4 text-amber-400" />
+            <h4 className="text-sm font-bold text-amber-200">
+              {language === 'kr' ? 'Enstrimantal pou chante' : 'Instrumentales pour chanter'}
+            </h4>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {YOUTUBE_INSTRUMENTALS.map((instrumental, index) => (
+              <button
+                key={instrumental.id}
+                type="button"
+                onClick={() => setSelectedInstrumentalId(instrumental.id)}
+                aria-pressed={selectedInstrumentalId === instrumental.id}
+                className={`rounded-xl border px-3 py-2 text-left text-xs font-semibold transition ${
+                  selectedInstrumentalId === instrumental.id
+                    ? 'border-amber-400 bg-amber-500/15 text-amber-100'
+                    : 'border-slate-700 bg-slate-900/70 text-slate-300 hover:border-amber-500/60'
+                }`}
+              >
+                {index === 0
+                  ? language === 'kr' ? 'Lwanj ak adorasyon — gita' : 'Louange et adoration — guitare'
+                  : language === 'kr' ? 'Chant d’espérance — enstrimantal' : 'Chants d’espérance — instrumental'}
+              </button>
+            ))}
+          </div>
+          {selectedInstrumentalId && (
+            <div className="mt-3 overflow-hidden rounded-xl border border-slate-700 bg-black">
+              <iframe
+                className="aspect-video w-full"
+                src={`https://www.youtube-nocookie.com/embed/${selectedInstrumentalId}?playsinline=1&rel=0`}
+                title={YOUTUBE_INSTRUMENTALS.find((item) => item.id === selectedInstrumentalId)?.title ?? 'YouTube instrumental'}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerPolicy="strict-origin-when-cross-origin"
+                allowFullScreen
+              />
+            </div>
+          )}
+          <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
+            {language === 'kr'
+              ? 'Chwazi yon mizik epi peze bouton lekti YouTube la, apre sa kòmanse anrejistre. Enstrimantal la jwe an menm tan, men fichye ki sove a anrejistre mikwo a sèlman. Entènèt nesesè.'
+              : 'Choisissez une piste et lancez la lecture YouTube, puis démarrez l’enregistrement. L’instrumentale continue pendant le chant, mais le fichier sauvegardé contient la voix du micro uniquement. Connexion Internet requise.'}
+          </p>
+        </div>
 
         {/* Recording Screen Center: Timer & Dynamic Sound Bar */}
         <div className="py-6 flex flex-col items-center justify-center space-y-4">
