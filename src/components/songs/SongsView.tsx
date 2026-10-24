@@ -19,6 +19,13 @@ import {
   Plus,
   Check,
   Volume2,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
+  Bold,
+  Italic,
+  RotateCcw,
 } from 'lucide-react';
 import { HYMNAL_SECTIONS } from '../../data/sampleSongs';
 import { songService } from '../../services/songService';
@@ -53,6 +60,10 @@ export const SongsView: React.FC<SongsViewProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<SongCategory | 'all'>('all');
   const [worshipMode, setWorshipMode] = useState(false);
   const [fontSize, setFontSize] = useState(20);
+  const [lyricsAlignment, setLyricsAlignment] = useState<'left' | 'center' | 'right' | 'justify'>('left');
+  const [lyricsBold, setLyricsBold] = useState(false);
+  const [lyricsItalic, setLyricsItalic] = useState(false);
+  const [showFormatting, setShowFormatting] = useState(false);
 
   // Auto-scroll for hands-free singing
   const [isAutoScrolling, setIsAutoScrolling] = useState(false);
@@ -151,6 +162,79 @@ export const SongsView: React.FC<SongsViewProps> = ({
     { id: 'enfants', label: t.songs.filterEnfants },
   ];
 
+  const formattingPanel = showFormatting && (
+    <div
+      role="group"
+      aria-label={language === 'kr' ? 'Fòma pawòl yo' : 'Formatage des paroles'}
+      className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-3 text-xs dark:border-slate-800 dark:bg-[#0D1C30]"
+    >
+      <span className="mr-1 font-semibold text-slate-500 dark:text-slate-400">
+        {language === 'kr' ? 'Aliyman' : 'Alignement'}
+      </span>
+      {([
+        ['left', AlignLeft, language === 'kr' ? 'Gòch' : 'Gauche'],
+        ['center', AlignCenter, language === 'kr' ? 'Sant' : 'Centrer'],
+        ['right', AlignRight, language === 'kr' ? 'Dwat' : 'Droite'],
+        ['justify', AlignJustify, language === 'kr' ? 'Jistifye' : 'Justifier'],
+      ] as const).map(([alignment, Icon, label]) => (
+        <button
+          key={alignment}
+          type="button"
+          onClick={() => setLyricsAlignment(alignment)}
+          aria-label={label}
+          aria-pressed={lyricsAlignment === alignment}
+          className={`rounded-lg p-2 transition ${
+            lyricsAlignment === alignment
+              ? 'bg-amber-500 text-slate-950 shadow-sm'
+              : 'bg-slate-100 text-slate-700 hover:bg-amber-100 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+          }`}
+        >
+          <Icon className="h-4 w-4" />
+        </button>
+      ))}
+      <span className="mx-1 h-6 w-px bg-slate-200 dark:bg-slate-700" />
+      <button
+        type="button"
+        onClick={() => setLyricsBold(value => !value)}
+        aria-label={language === 'kr' ? 'Gras' : 'Gras'}
+        aria-pressed={lyricsBold}
+        className={`rounded-lg p-2 transition ${
+          lyricsBold
+            ? 'bg-amber-500 text-slate-950 shadow-sm'
+            : 'bg-slate-100 text-slate-700 hover:bg-amber-100 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+        }`}
+      >
+        <Bold className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        onClick={() => setLyricsItalic(value => !value)}
+        aria-label={language === 'kr' ? 'An italik' : 'Italique'}
+        aria-pressed={lyricsItalic}
+        className={`rounded-lg p-2 transition ${
+          lyricsItalic
+            ? 'bg-amber-500 text-slate-950 shadow-sm'
+            : 'bg-slate-100 text-slate-700 hover:bg-amber-100 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+        }`}
+      >
+        <Italic className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          setLyricsAlignment('left');
+          setLyricsBold(false);
+          setLyricsItalic(false);
+          setFontSize(20);
+        }}
+        className="ml-auto inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-2 text-slate-600 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+      >
+        <RotateCcw className="h-3.5 w-3.5" />
+        {language === 'kr' ? 'Reyajiste' : 'Réinitialiser'}
+      </button>
+    </div>
+  );
+
   // MODE CULTE (Plein écran solennel pour projection ou pupitre)
   if (worshipMode && selectedSong) {
     return (
@@ -181,7 +265,7 @@ export const SongsView: React.FC<SongsViewProps> = ({
           </div>
 
           {/* Auto scroll control bar inside Worship mode */}
-          <div className="my-4 py-2 px-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-between text-xs">
+          <div className="my-4 py-2 px-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
             <button
               onClick={() => setIsAutoScrolling(!isAutoScrolling)}
               className={`px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5 transition ${
@@ -197,7 +281,19 @@ export const SongsView: React.FC<SongsViewProps> = ({
               <button onClick={() => setFontSize(Math.max(16, fontSize - 2))} className="px-2 py-0.5 bg-slate-800 rounded">A-</button>
               <button onClick={() => setFontSize(Math.min(34, fontSize + 2))} className="px-2 py-0.5 bg-slate-800 rounded">A+</button>
             </div>
+            <button
+              type="button"
+              onClick={() => setShowFormatting(value => !value)}
+              aria-expanded={showFormatting}
+              className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 font-semibold transition ${
+                showFormatting ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-200 hover:bg-slate-700'
+              }`}
+            >
+              <Type className="h-3.5 w-3.5" />
+              {language === 'kr' ? 'Fòma' : 'Format'}
+            </button>
           </div>
+          {formattingPanel && <div className="my-3 rounded-2xl border border-slate-800 bg-slate-900/80 p-1 [&>div]:border-slate-700 [&>div]:bg-transparent [&>div]:text-slate-200">{formattingPanel}</div>}
 
           {/* Lyrics Large */}
           <div className="py-6 space-y-10 text-center">
@@ -208,7 +304,12 @@ export const SongsView: React.FC<SongsViewProps> = ({
                 </span>
                 <div
                   className="font-scripture leading-relaxed tracking-wide text-slate-100"
-                  style={{ fontSize: `${fontSize + 6}px` }}
+                  style={{
+                    fontSize: `${fontSize + 6}px`,
+                    textAlign: lyricsAlignment,
+                    fontWeight: lyricsBold ? 700 : 400,
+                    fontStyle: lyricsItalic ? 'italic' : 'normal',
+                  }}
                 >
                   {v.text.map((l, i) => (
                     <p key={i} className="mb-2">
@@ -225,7 +326,12 @@ export const SongsView: React.FC<SongsViewProps> = ({
                     </span>
                     <div
                       className="font-scripture italic leading-relaxed"
-                      style={{ fontSize: `${fontSize + 6}px` }}
+                      style={{
+                        fontSize: `${fontSize + 6}px`,
+                        textAlign: lyricsAlignment,
+                        fontWeight: lyricsBold ? 700 : 600,
+                        fontStyle: lyricsItalic ? 'italic' : 'normal',
+                      }}
                     >
                       {selectedSong.chorus.map((l, i) => (
                         <p key={i} className="mb-2 font-semibold">
@@ -372,7 +478,24 @@ export const SongsView: React.FC<SongsViewProps> = ({
                 A+
               </button>
             </div>
+
+            <button
+              type="button"
+              onClick={() => setShowFormatting(value => !value)}
+              aria-expanded={showFormatting}
+              className={`rounded-xl px-3 py-1.5 font-semibold transition ${
+                showFormatting
+                  ? 'bg-amber-500 text-slate-950 shadow-sm'
+                  : 'bg-slate-100 text-slate-700 hover:bg-amber-100 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+              }`}
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <Type className="h-3.5 w-3.5" />
+                {language === 'kr' ? 'Fòma' : 'Format'}
+              </span>
+            </button>
           </div>
+          {formattingPanel}
 
           {/* Song Card */}
           <div className="bg-white dark:bg-[#0D1C30] rounded-3xl p-6 shadow-md border border-slate-200 dark:border-slate-800 space-y-6">
@@ -422,7 +545,12 @@ export const SongsView: React.FC<SongsViewProps> = ({
                   </span>
                   <div
                     className="font-scripture text-slate-800 dark:text-slate-200 leading-relaxed space-y-1.5"
-                    style={{ fontSize: `${fontSize}px` }}
+                    style={{
+                      fontSize: `${fontSize}px`,
+                      textAlign: lyricsAlignment,
+                      fontWeight: lyricsBold ? 700 : 400,
+                      fontStyle: lyricsItalic ? 'italic' : 'normal',
+                    }}
                   >
                     {v.text.map((line, i) => (
                       <p key={i}>{line}</p>
@@ -446,7 +574,14 @@ export const SongsView: React.FC<SongsViewProps> = ({
 
                   {/* Refrain after couplet 1 */}
                   {v.number === 1 && selectedSong.chorus && (
-                    <div className="my-5 p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/20 border-l-4 border-amber-500 text-amber-900 dark:text-amber-200 space-y-1">
+                    <div
+                      className="my-5 p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/20 border-l-4 border-amber-500 text-amber-900 dark:text-amber-200 space-y-1"
+                      style={{
+                        textAlign: lyricsAlignment,
+                        fontWeight: lyricsBold ? 700 : 400,
+                        fontStyle: lyricsItalic ? 'italic' : 'normal',
+                      }}
+                    >
                       <span className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 block mb-1">
                         Refrain
                       </span>

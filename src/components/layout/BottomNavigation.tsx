@@ -40,21 +40,21 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
             <button
               key={item.id}
               onClick={() => onTabChange(item.id)}
-              className={`flex flex-col items-center justify-center gap-1 transition-all relative ${
-                isActive ? 'text-amber-400 font-semibold' : 'text-slate-400 hover:text-slate-200'
+              aria-current={isActive ? 'page' : undefined}
+              className={`my-1 mx-0.5 flex flex-col items-center justify-center gap-1 rounded-xl transition-all ${
+                isActive
+                  ? 'bg-amber-500/15 text-amber-300 font-bold ring-1 ring-inset ring-amber-400/40 shadow-[0_0_14px_rgba(245,158,11,0.12)]'
+                  : 'text-slate-400 hover:bg-white/5 hover:text-slate-100'
               }`}
             >
-              {isActive && (
-                <div className="absolute top-0 w-8 h-1 bg-amber-400 rounded-b-full shadow-[0_0_8px_#C9A227]" />
-              )}
               <div
-                className={`p-1 rounded-xl transition-transform ${
-                  isActive ? 'scale-110 bg-amber-400/10' : ''
+                className={`rounded-xl p-1.5 transition-all ${
+                  isActive ? 'scale-110 bg-amber-400 text-[#12263F] shadow-sm' : ''
                 }`}
               >
-                <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.3]' : 'stroke-[1.8]'}`} />
+                <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.6]' : 'stroke-[1.8]'}`} />
               </div>
-              <span className="text-[11px] tracking-tight truncate max-w-[68px]">
+              <span className={`text-[11px] tracking-tight truncate max-w-[68px] ${isActive ? 'font-bold' : 'font-medium'}`}>
                 {item.label}
               </span>
             </button>
