@@ -1,4 +1,4 @@
-import { SAMPLE_SONGS } from '../data/sampleSongs';
+import { HYMNAL_SECTIONS, SAMPLE_SONGS } from '../data/sampleSongs';
 import { adminBackendService } from './adminBackendService';
 import { HymnalSection, Song, SongCategory, SongRightsMetadata, WorshipList } from '../types';
 
@@ -64,7 +64,13 @@ class SongService {
     [...SAMPLE_SONGS, ...this.sharedSongs, ...customSongs].forEach(song => {
       songsById.set(song.id, normalizeSongRights(song));
     });
-    return [...songsById.values()];
+    const sectionOrder = new Map(HYMNAL_SECTIONS.map((section, index) => [section.code, index]));
+    return [...songsById.values()].sort((a, b) => {
+      const sectionDifference =
+        (sectionOrder.get(a.sectionCode) ?? HYMNAL_SECTIONS.length) -
+        (sectionOrder.get(b.sectionCode) ?? HYMNAL_SECTIONS.length);
+      return sectionDifference || a.number - b.number || a.sectionCode.localeCompare(b.sectionCode);
+    });
   }
 
   async refreshSharedSongs(): Promise<Song[]> {
