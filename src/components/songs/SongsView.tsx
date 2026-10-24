@@ -26,6 +26,8 @@ import {
   Bold,
   Italic,
   RotateCcw,
+  ChevronRight,
+  X,
 } from 'lucide-react';
 import { HYMNAL_SECTIONS } from '../../data/sampleSongs';
 import { songService } from '../../services/songService';
@@ -64,6 +66,8 @@ export const SongsView: React.FC<SongsViewProps> = ({
   const [lyricsBold, setLyricsBold] = useState(false);
   const [lyricsItalic, setLyricsItalic] = useState(false);
   const [showFormatting, setShowFormatting] = useState(false);
+  const [showSongNavigator, setShowSongNavigator] = useState(false);
+  const [songNavigatorQuery, setSongNavigatorQuery] = useState('');
 
   // Auto-scroll for hands-free singing
   const [isAutoScrolling, setIsAutoScrolling] = useState(false);
@@ -82,6 +86,25 @@ export const SongsView: React.FC<SongsViewProps> = ({
 
   // Filter songs
   const songs = songService.searchSongs(searchQuery, selectedCategory, selectedSection);
+  const carouselSongs = songService.searchSongs('', 'all', 'all');
+  const currentCarouselIndex = selectedSong
+    ? carouselSongs.findIndex(song => song.id === selectedSong.id)
+    : -1;
+  const navigatorResults = songService.searchSongs(songNavigatorQuery, 'all', 'all');
+
+  const navigateCarousel = (direction: -1 | 1) => {
+    const nextSong = carouselSongs[currentCarouselIndex + direction];
+    if (!nextSong) return;
+    setSelectedSong(nextSong);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const selectNavigatorSong = (song: Song) => {
+    setSelectedSong(song);
+    setShowSongNavigator(false);
+    setSongNavigatorQuery('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -162,6 +185,54 @@ export const SongsView: React.FC<SongsViewProps> = ({
     { id: 'enfants', label: t.songs.filterEnfants },
   ];
 
+  const songCarouselControls = selectedSong && (
+    <div className="flex items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white p-2 dark:border-slate-800 dark:bg-[#0D1C30]">
+      <button
+        type="button"
+        onClick={() => navigateCarousel(-1)}
+        disabled={currentCarouselIndex <= 0}
+        aria-label={language === 'kr' ? 'Chant anvan an' : 'Chant précédent'}
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-35 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+      >
+        <ChevronLeft className="h-5 w-5" />
+      </button>
+      <div className="min-w-0 flex-1 text-center">
+        <p className="truncate text-xs font-bold text-slate-800 dark:text-slate-100">
+          #{selectedSong.number} · {selectedSong.title}
+        </p>
+        <p className="text-[10px] text-slate-500">
+          {currentCarouselIndex >= 0 ? currentCarouselIndex + 1 : '—'} / {carouselSongs.length}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={() => navigateCarousel(1)}
+        disabled={currentCarouselIndex < 0 || currentCarouselIndex >= carouselSongs.length - 1}
+        aria-label={language === 'kr' ? 'Chant apre a' : 'Chant suivant'}
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-35 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+      >
+        <ChevronRight className="h-5 w-5" />
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          setSongNavigatorQuery('');
+          setShowSongNavigator(value => !value);
+        }}
+        aria-expanded={showSongNavigator}
+        aria-label={language === 'kr' ? 'Chèche yon chant' : 'Rechercher un chant'}
+        className={`flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-bold transition ${
+          showSongNavigator
+            ? 'bg-amber-500 text-slate-950'
+            : 'bg-[#12263F] text-amber-300 hover:bg-slate-800'
+        }`}
+      >
+        <Search className="h-4 w-4" />
+        <span>{language === 'kr' ? 'Chèche' : 'Chercher'}</span>
+      </button>
+    </div>
+  );
+
   const formattingPanel = showFormatting && (
     <div
       role="group"
@@ -235,6 +306,71 @@ export const SongsView: React.FC<SongsViewProps> = ({
     </div>
   );
 
+  const songNavigatorPanel = showSongNavigator && (
+    <section
+      role="search"
+      aria-label={language === 'kr' ? 'Chèche yon lòt chant' : 'Rechercher un autre chant'}
+      className="rounded-2xl border border-amber-500/30 bg-white p-4 shadow-lg dark:bg-[#0D1C30]"
+    >
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+          {language === 'kr' ? 'Chèche yon chant' : 'Trouver un chant'}
+        </h3>
+        <button
+          type="button"
+          onClick={() => setShowSongNavigator(false)}
+          aria-label={language === 'kr' ? 'Fèmen rechèch la' : 'Fermer la recherche'}
+          className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <input
+          type="search"
+          autoFocus
+          value={songNavigatorQuery}
+          onChange={event => setSongNavigatorQuery(event.target.value)}
+          placeholder={language === 'kr' ? 'Nimewo, tit, pawòl oswa seksyon…' : 'Numéro, titre, paroles ou recueil…'}
+          className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+        />
+      </div>
+      <div className="mt-3 max-h-64 space-y-1 overflow-y-auto">
+        {navigatorResults.length === 0 ? (
+          <p className="p-3 text-center text-xs text-slate-500">
+            {language === 'kr' ? 'Pa jwenn okenn chant.' : 'Aucun chant trouvé.'}
+          </p>
+        ) : navigatorResults.slice(0, 30).map(song => (
+          <button
+            key={song.id}
+            type="button"
+            onClick={() => selectNavigatorSong(song)}
+            aria-current={song.id === selectedSong?.id ? 'true' : undefined}
+            className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition ${
+              song.id === selectedSong?.id
+                ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300'
+                : 'text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800'
+            }`}
+          >
+            <span className="flex h-8 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-amber-700 dark:bg-slate-800 dark:text-amber-300">
+              #{song.number}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-xs font-semibold">{song.title}</span>
+              <span className="mt-0.5 block truncate text-[10px] text-slate-500">{song.section}</span>
+            </span>
+          </button>
+        ))}
+        {navigatorResults.length > 30 && (
+          <p className="p-2 text-center text-[10px] text-slate-500">
+            {language === 'kr' ? 'Kontinye ekri pou presize rechèch la.' : 'Continuez à saisir pour affiner la recherche.'}
+          </p>
+        )}
+      </div>
+    </section>
+  );
+
   // MODE CULTE (Plein écran solennel pour projection ou pupitre)
   if (worshipMode && selectedSong) {
     return (
@@ -263,6 +399,8 @@ export const SongsView: React.FC<SongsViewProps> = ({
               <span>{t.songs.exitWorshipMode}</span>
             </button>
           </div>
+          <div className="my-3">{songCarouselControls}</div>
+          {songNavigatorPanel}
 
           {/* Auto scroll control bar inside Worship mode */}
           <div className="my-4 py-2 px-4 rounded-2xl bg-slate-900/80 border border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
@@ -429,6 +567,8 @@ export const SongsView: React.FC<SongsViewProps> = ({
               </button>
             </div>
           </div>
+          {songCarouselControls}
+          {songNavigatorPanel}
 
           {/* Quick Reader Controls: Auto-Scroll & Text Size */}
           <div className="p-2.5 rounded-2xl bg-white dark:bg-[#0D1C30] border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs font-semibold">

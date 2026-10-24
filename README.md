@@ -47,6 +47,7 @@ La Bible créole est mise en cache après son premier chargement réussi afin qu
 ### Lecture, recherche et personnalisation
 
 - Le lecteur biblique s’ouvre sur Matthieu 1. La recherche depuis l’écran Bible porte sur l’ensemble des livres; les résultats créoles couvrent les textes créoles chargés dans l’application et la recherche française utilise le service de Bible en ligne.
+- Dans la lecture d’un chant, utilisez les flèches **Précédent/Suivant** pour parcourir le répertoire ou **Chercher** pour trouver directement un chant par numéro, titre, paroles ou recueil, sans revenir à la navigation principale. Les commandes sont aussi disponibles en mode plein écran.
 - Dans le sélecteur de livre, ouvrez **Auteur et contexte historique** pour consulter les attributions, périodes, lieux et circonstances. Les dates sont indicatives et les attributions anciennes sont parfois discutées.
 - Dans **Mon Espace → Paramètres**, choisissez une palette prédéfinie ou ajustez vous-même la couleur principale et la couleur d’accent. Ces préférences sont enregistrées sur cet appareil.
 - L’application utilise **Montserrat**; les grands titres sont en graisse 900 et en majuscules. Les annonces défilantes utilisent **Black Ops One** avec Montserrat en remplacement. Seules ces deux familles de polices sont chargées afin d’éviter les anciennes polices inutilisées. L’animation des annonces est désactivée si l’appareil demande une réduction des mouvements.
