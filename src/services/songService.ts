@@ -1,4 +1,5 @@
 import { HYMNAL_SECTIONS, SAMPLE_SONGS } from '../data/sampleSongs';
+import { SUPPLEMENTAL_HYMNS } from '../data/hymnSupplement';
 import { adminBackendService } from './adminBackendService';
 import { HymnalSection, Song, SongCategory, SongRightsMetadata, WorshipList } from '../types';
 
@@ -61,7 +62,7 @@ class SongService {
       // ignore
     }
     const songsById = new Map<string, Song>();
-    [...SAMPLE_SONGS, ...this.sharedSongs, ...customSongs].forEach(song => {
+    [...SAMPLE_SONGS, ...SUPPLEMENTAL_HYMNS, ...this.sharedSongs, ...customSongs].forEach(song => {
       songsById.set(song.id, normalizeSongRights(song));
     });
     const sectionOrder = new Map(HYMNAL_SECTIONS.map((section, index) => [section.code, index]));
